@@ -50,7 +50,7 @@
   Object
   (equals [self other]
     (if (instance? RuleSuccess other)
-      (= v (.-v other))
+      (= v (.-v ^RuleSuccess other))
       false))
 
   (toString [self]
@@ -64,7 +64,7 @@
   Object
   (equals [self other]
     (if (instance? RuleError other)
-      (= v (.-v other))
+      (= v (.-v ^RuleError other))
       false))
 
   (toString [self]
