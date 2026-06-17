@@ -2,8 +2,8 @@
   (:refer-clojure :exclude [compile])
   (:require [clojure.tools.build.api :as b]))
 
-(def lib 'buddy/buddy-auth)
-(def version (format "3.0.%s" (b/git-count-revs nil)))
+(def lib 'net.clojars.savya/buddy-auth)
+(def version "3.1.0")
 (def class-dir "target/classes")
 (def basis (b/create-basis {:project "deps.edn"}))
 (def jar-file (format "target/%s-%s.jar" (name lib) version))
@@ -17,7 +17,9 @@
     :lib lib
     :version version
     :basis basis
-    :src-dirs ["src"]})
+    :src-dirs ["src"]
+    :scm {:url "https://github.com/jsavyasachi/buddy-auth"
+          :tag version}})
 
   (b/copy-dir
    {:src-dirs ["src" "resources"]
@@ -26,12 +28,3 @@
   (b/jar
    {:class-dir class-dir
     :jar-file jar-file}))
-
-(defn clojars [_]
-  (b/process
-   {:command-args ["mvn"
-                   "deploy:deploy-file"
-                   (str "-Dfile=" jar-file)
-                   "-DpomFile=target/classes/META-INF/maven/buddy/buddy-auth/pom.xml"
-                   "-DrepositoryId=clojars"
-                   "-Durl=https://clojars.org/repo/"]}))
