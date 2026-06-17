@@ -18,13 +18,13 @@ _buddy-auth_ is a stable, mature library. This is a maintenance fork of
 deps.edn:
 
 ```clojure
-net.clojars.savya/buddy-auth {:mvn/version "3.1.0"}
+net.clojars.savya/buddy-auth {:mvn/version "3.1.1"}
 ```
 
 Leiningen:
 
 ```clojure
-[net.clojars.savya/buddy-auth "3.1.0"]
+[net.clojars.savya/buddy-auth "3.1.1"]
 ```
 
 This package is intended to be used with *jdk>=8*.
