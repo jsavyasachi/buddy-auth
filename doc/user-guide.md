@@ -8,16 +8,23 @@ facilites for ring and ring based web applications.
 
 ### Project Maturity
 
-Since _buddy-auth_ is in a maintenance mode and does not expect more changes.
+_buddy-auth_ is a stable, mature library. This is a maintenance fork of
+[funcool/buddy-auth](https://github.com/funcool/buddy-auth), published as
+`net.clojars.savya/buddy-auth`.
 
 
 ### Install
 
-The simplest way to use _buddy-auth_ in a clojure project is by including it in
-your *_project.clj_* dependency vector:
+deps.edn:
 
 ```clojure
-{buddy/buddy-auth {:mvn/version "3.0.323"}
+net.clojars.savya/buddy-auth {:mvn/version "3.1.0"}
+```
+
+Leiningen:
+
+```clojure
+[net.clojars.savya/buddy-auth "3.1.0"]
 ```
 
 This package is intended to be used with *jdk>=8*.
