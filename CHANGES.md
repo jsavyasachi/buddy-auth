@@ -1,5 +1,26 @@
 # Changelog
 
+## Version 3.1.1
+
+Date: 2026-06-16
+
+First self-published maintenance fork, as `net.clojars.savya/buddy-auth`. No
+library behavior changes (the suite passed green as-is on Clojure 1.12 / JDK 17);
+the work is toolchain modernization.
+
+- Bump `buddy-sign` 3.4 to 3.6.1, `tools.build` 0.7.4 to 0.10.14, and
+  `test-runner` 0.5.0 to 0.5.1; drop the `clojure-1.11.0-alpha4` dev pin.
+- Resolve two reflection warnings in `accessrules` (`RuleSuccess`/`RuleError`
+  `.-v` field access).
+- Replace Travis with a GitHub Actions matrix (JDK 17/21 x Clojure 1.11/1.12).
+- Rewrite the README to the canonical skeleton and retarget the coordinate to
+  the fork.
+
+(Version 3.1.0 was never published: its initial deploy was aborted by a
+license-in-POM packaging fix, which made the slot immutable, so the first
+released fork version is 3.1.1.)
+
+
 ## Version 3.0.323
 
 Date: 2022-01-14
