@@ -61,4 +61,7 @@ modernized (current `buddy-sign`/`tools.build`, Clojure 1.11/1.12 CI) and publis
 
 ## License
 
-Apache License 2.0. Copyright 2013-2022 Andrey Antukh. See [LICENSE](LICENSE).
+Copyright © 2013-2022 Andrey Antukh.
+
+Maintenance fork (2026) by Savyasachi, original: https://github.com/funcool/buddy-auth.
+Distributed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), preserving the original license.
