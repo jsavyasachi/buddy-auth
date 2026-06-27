@@ -2,7 +2,7 @@
 
 Authentication and authorization for [Ring](https://github.com/ring-clojure/ring) web applications.
 
-[![Clojars](https://img.shields.io/clojars/v/net.clojars.savya/buddy-auth.svg)](https://clojars.org/net.clojars.savya/buddy-auth)
+[![Clojars Project](https://img.shields.io/clojars/v/net.clojars.savya/buddy-auth.svg)](https://clojars.org/net.clojars.savya/buddy-auth)
 [![cljdoc](https://cljdoc.org/badge/net.clojars.savya/buddy-auth)](https://cljdoc.org/d/net.clojars.savya/buddy-auth)
 [![test](https://github.com/jsavyasachi/buddy-auth/actions/workflows/test.yml/badge.svg)](https://github.com/jsavyasachi/buddy-auth/actions/workflows/test.yml)
 
