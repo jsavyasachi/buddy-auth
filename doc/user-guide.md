@@ -331,7 +331,7 @@ net.clojars.savya/jose-clj {:mvn/version "0.1.0"}   ; deps.edn
 [net.clojars.savya/jose-clj "0.1.0"]                ; Leiningen
 ```
 
-It requires JDK 17+. The bearer token is read from the `Authorization` header
+It requires JDK 11+ (via jose-clj). The bearer token is read from the `Authorization` header
 using the `Bearer` scheme by default.
 
 ```clojure
