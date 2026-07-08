@@ -48,6 +48,7 @@ implement a new one with simple steps. This is a list of builtin backends:
 | Token         | `buddy.auth.backends/token`    |
 | Signed JWT    | `buddy.auth.backends/jws`      |
 | Encrypted JWT | `buddy.auth.backends/jwe`      |
+| JWKS          | `buddy.auth.backends/jwks`     |
 
 If you are not happy with the built-in backends, you can implement your own and
 use it with _buddy-auth_ middleware without any problems.
@@ -310,6 +311,63 @@ The corresponding login endpoint should have a similar aspect to this:
 In order to use any asymmetric encryption algorithm, you should have private/public
 key pair. If you don't have one, don't worry, it is very easy to generate it using
 *openssl*, see this link:https://funcool.github.io/buddy-sign/latest/#generate-keypairs[faq entry].
+
+#### JWKS
+
+The signed and encrypted JWT backends above verify tokens against a key you hold
+locally. The JWKS backend instead validates signed JWTs against a JWK Set,
+typically a remote JWKS endpoint published by an identity provider (Auth0, Google,
+Okta, Keycloak, ...). This is the common pattern for validating OIDC access tokens:
+the provider signs tokens with rotating keys and publishes the public keys at a
+JWKS URL, and your service fetches and caches them.
+
+This backend uses [jose-clj](https://github.com/jsavyasachi/jose-clj) (over Nimbus
+JOSE+JWT), which is an *optional* dependency: to keep buddy-auth lean for users who
+do not need it, jose-clj is not pulled in transitively. Add it to your project to
+use this backend (calling `backends/jwks` without it throws a clear error):
+
+```clojure
+net.clojars.savya/jose-clj {:mvn/version "0.1.0"}   ; deps.edn
+[net.clojars.savya/jose-clj "0.1.0"]                ; Leiningen
+```
+
+It requires JDK 17+. The bearer token is read from the `Authorization` header
+using the `Bearer` scheme by default.
+
+```clojure
+(require '[buddy.auth.backends :as backends])
+(require '[buddy.auth.middleware :refer (wrap-authentication)])
+
+;; validate against a provider's JWKS endpoint, with standard claim checks
+(def backend
+  (backends/jwks {:jwks-url "https://accounts.google.com/.well-known/jwks.json"
+                  :options {:iss "https://accounts.google.com"
+                            :aud "your-client-id"
+                            :clock-skew 60
+                            :required [:sub]}}))
+
+(def app (-> your-ring-app
+             (wrap-authentication backend)))
+```
+
+The key set is fetched once and cached (the cache and its refresh live in the
+underlying source). On success, the request's `:identity` is the validated claims
+map. Verification and claim checks failing (bad signature, unknown key id,
+expired, issuer/audience mismatch, missing required claim) leave the request
+unauthenticated; pass an `:on-error` hook to observe the cause.
+
+Options:
+
+- `:jwks-url` - URL of a JWKS endpoint (mutually exclusive with `:source`).
+- `:source` - a prebuilt `jose.jwks` source (`remote-source` or `local-source`),
+  useful for tests or custom fetching.
+- `:jwks-opts` - map passed to `jose.jwks/remote-source` (`:cache-ttl-ms`,
+  `:connect-timeout-ms`, `:read-timeout-ms`, `:rate-limit-ms`).
+- `:options` - claim validation passed to jose-clj (`:iss`, `:aud`, `:clock-skew`,
+  `:required`).
+- `:token-name` - the Authorization scheme, `"Bearer"` by default.
+- `:authfn` - transforms the validated claims into the request identity.
+- `:on-error` - `(fn [request exception] ...)` called when validation fails.
 
 
 ## Authorization

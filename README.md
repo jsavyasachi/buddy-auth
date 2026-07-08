@@ -18,7 +18,8 @@ Authentication and authorization for [Ring](https://github.com/ring-clojure/ring
 Ring-based web applications:
 
 - Authentication backends: HTTP Basic, session, and token (incl. signed JWT/JWE via
-  [buddy-sign](https://github.com/funcool/buddy-sign)).
+  [buddy-sign](https://github.com/funcool/buddy-sign), and JWKS/OIDC token
+  validation via [jose-clj](https://github.com/jsavyasachi/jose-clj)).
 - Ring middleware: `wrap-authentication` / `wrap-authorization`.
 - Access rules: declarative per-route authorization with `clout` patterns.
 
@@ -27,13 +28,13 @@ Ring-based web applications:
 deps.edn:
 
 ```clojure
-net.clojars.savya/buddy-auth {:mvn/version "3.1.2"}
+net.clojars.savya/buddy-auth {:mvn/version "3.2.0"}
 ```
 
 Leiningen:
 
 ```clojure
-[net.clojars.savya/buddy-auth "3.1.2"]
+[net.clojars.savya/buddy-auth "3.2.0"]
 ```
 
 ## Usage

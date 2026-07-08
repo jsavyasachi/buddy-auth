@@ -13,6 +13,9 @@
 ;; limitations under the License.
 
 (ns buddy.auth.backends
+  ;; buddy.auth.backends.jwks is intentionally NOT required here: it depends on
+  ;; the optional jose-clj library, and requiring it statically would force that
+  ;; dependency on every buddy-auth user. It is loaded lazily by `jwks` below.
   (:require [buddy.auth.backends.httpbasic :as httpbasic]
             [buddy.auth.backends.token :as token]
             [buddy.auth.backends.session :as session]))
@@ -65,6 +68,33 @@
   ([] (jwe nil))
   ([opts] (token/jwe-backend opts)))
 
+(defn jwks
+  "Create an instance of the JWKS based authentication
+  backend.
+
+  This backend validates bearer tokens against a JWK Set
+  or JWKS endpoint and supports full claim validation via
+  the :options map.
+
+  Requires the optional `net.clojars.savya/jose-clj`
+  dependency on the classpath; add it to your project to
+  use this backend. A clear exception is thrown otherwise.
+
+  This backend also implements authorization workflow
+  with some defaults. This means that you can provide
+  your own unauthorized-handler hook if the default one
+  does not satisfy you."
+  ([opts]
+   (try
+     (require 'buddy.auth.backends.jwks)
+     (catch Exception e
+       (throw (ex-info (str "The jwks backend requires the optional "
+                            "net.clojars.savya/jose-clj dependency on the "
+                            "classpath. Add it to your project to use this backend.")
+                       {:missing-dependency 'net.clojars.savya/jose-clj}
+                       e))))
+   ((resolve 'buddy.auth.backends.jwks/jwks-backend) opts)))
+
 (defn token
   "Create an instance of the generic token based
   authentication backend.
@@ -75,4 +105,3 @@
   does not satisfy you."
   ([] (token nil))
   ([opts] (token/token-backend opts)))
-

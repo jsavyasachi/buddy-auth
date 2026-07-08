@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+## Version 3.2.0
+
+Date: 2026-07-08
+
+- Add a JWKS authentication backend (`buddy.auth.backends/jwks`) for validating
+  bearer/OIDC access tokens against a JWK Set or remote JWKS endpoint, with full
+  claim validation (`:iss`, `:aud`, `:clock-skew`, `:required`). It is built on
+  [jose-clj](https://github.com/jsavyasachi/jose-clj) (Nimbus JOSE+JWT).
+- `jose-clj` is an *optional* dependency: it is not pulled in transitively, so
+  users who do not need the JWKS backend are not forced to carry Nimbus. Add
+  `net.clojars.savya/jose-clj` to your project to use the backend; calling it
+  without the dependency throws a clear error. Requires JDK 17+.
+
+## Version 3.1.2
+
+Date: 2026-07-02
+
+- Add a tag-triggered Clojars release workflow; normalize docs and the Clojars
+  badge label. No library behavior changes.
+
 ## Version 3.1.1
 
 Date: 2026-06-16
