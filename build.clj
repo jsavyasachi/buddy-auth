@@ -35,7 +35,7 @@
     :basis basis
     :src-dirs ["src"]
     :scm {:url "https://github.com/jsavyasachi/buddy-auth"
-          :tag version}
+          :tag (str "v" version)}
     :pom-data [[:licenses
                 [:license
                  [:name "Apache License 2.0"]
