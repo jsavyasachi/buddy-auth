@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## Version 3.2.1
+
+Date: 2026-07-08
+
+- Declare the optional `jose-clj` dependency as `provided` scope in the POM so
+  cljdoc can load the `buddy.auth.backends.jwks` namespace for documentation.
+  Provided scope is non-transitive, so consumers still do not inherit it. No
+  code or behavior change from 3.2.0.
+
+
 ## Version 3.2.0
 
 Date: 2026-07-08
