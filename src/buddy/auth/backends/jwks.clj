@@ -51,11 +51,18 @@
     (throw (IllegalArgumentException. "Expected exactly one of :source or :jwks-url"))))
 
 (defn jwks-backend
+  "Creates a JWKS authentication backend.
+
+  :options must contain :algs (or :alg) to declare the expected JWT
+  algorithm. For example, pass :options {:algs #{:rs256}}."
   [{:keys [authfn unauthorized-handler options token-name on-error]
     :as opts
     :or {authfn identity options {} token-name "Bearer"}}]
   {:pre [(ifn? authfn)]}
   (let [source (jwks-source opts)]
+    (when-not (or (contains? options :alg) (contains? options :algs))
+      (throw (IllegalArgumentException.
+              "Expected JWT algorithm is required (RFC 8725); pass :options {:algs #{:rs256}}")))
     (reify
       proto/IAuthentication
       (-parse [_ request]

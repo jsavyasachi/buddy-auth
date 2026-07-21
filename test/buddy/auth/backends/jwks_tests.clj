@@ -24,10 +24,12 @@
   (backends/jwks {:source jwks-source
                   :options {:iss "https://issuer.example"
                             :aud "api://buddy-auth"
-                            :required [:sub]}}))
+                            :required [:sub]
+                            :algs #{:rs256}}}))
 
 (def jwks-backend-with-authfn
   (backends/jwks {:source jwks-source
+                  :options {:algs #{:rs256}}
                   :authfn (fn [claims]
                             {:subject (:sub claims)
                              :issuer (:iss claims)})}))
@@ -68,7 +70,8 @@
 
   (testing "Jwks backend rejects claim mismatches from validation options"
     (let [backend (backends/jwks {:source jwks-source
-                                  :options {:iss "https://other-issuer.example"}})
+                                  :options {:iss "https://other-issuer.example"
+                                            :algs #{:rs256}}})
           request (make-jwks-request (sign-token claims))
           handler (wrap-authentication identity backend)
           request' (handler request)]
@@ -78,6 +81,7 @@
   (testing "Jwks backend invokes on-error on verification failure"
     (let [p (promise)
           backend (backends/jwks {:source jwks-source
+                                  :options {:algs #{:rs256}}
                                   :on-error (fn [_ e] (deliver p (ex-data e)))})
           request (make-jwks-request "garbage")
           handler (-> identity
@@ -106,6 +110,11 @@
       (is (= (:body response) "Permission denied")))))
 
 (deftest jwks-backend-construction-test
+  (testing "Jwks backend requires an expected JWT algorithm"
+    (is (thrown-with-msg? IllegalArgumentException
+                          #"Expected JWT algorithm is required"
+                          (backends/jwks {:source jwks-source}))))
+
   (testing "Jwks backend requires exactly one JWK source"
     (is (thrown? IllegalArgumentException (backends/jwks {})))
     (is (thrown? IllegalArgumentException
