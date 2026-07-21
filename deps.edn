@@ -45,7 +45,7 @@
   {:replace-deps {slipset/deps-deploy {:mvn/version "0.2.5"}}
    :exec-fn deps-deploy.deps-deploy/deploy
    :exec-args {:installer :remote
-               :artifact "target/buddy-auth-3.2.1.jar"
+               :artifact "target/buddy-auth-4.0.0.jar"
                :pom-file "target/classes/META-INF/maven/net.clojars.savya/buddy-auth/pom.xml"}}
 
   :outdated
