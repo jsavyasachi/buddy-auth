@@ -17,11 +17,12 @@ Authentication and authorization for [Ring](https://github.com/ring-clojure/ring
 `buddy-auth` provides pluggable **authentication** and **authorization** for Ring and
 Ring-based web applications:
 
-- Authentication backends: HTTP Basic, session, and token (incl. signed JWT/JWE via
-  [buddy-sign](https://github.com/funcool/buddy-sign), and JWKS/OIDC token
-  validation via [jose-clj](https://github.com/jsavyasachi/jose-clj)).
+- Authentication backends: HTTP Basic, session, and token. Token covers signed
+  JWT and JWE through [buddy-sign](https://github.com/funcool/buddy-sign), and
+  JWKS/OIDC token validation through
+  [jose-clj](https://github.com/jsavyasachi/jose-clj).
 - Ring middleware: `wrap-authentication` / `wrap-authorization`.
-- Access rules: declarative per-route authorization with `clout` patterns.
+- Access rules: declarative authorization for each route with `clout` patterns.
 
 ## Installation
 
@@ -55,10 +56,11 @@ Full guide: [cljdoc](https://cljdoc.org/d/net.clojars.savya/buddy-auth) and `doc
 
 ## Maintenance fork
 
-This is a maintenance fork of [funcool/buddy-auth](https://github.com/funcool/buddy-auth),
-whose README flagged it as in maintenance mode and looking for a new maintainer. It is
-modernized (current `buddy-sign`/`tools.build`, Clojure 1.11/1.12 CI) and published under
-`net.clojars.savya/buddy-auth`. Original work by Andrey Antukh and contributors.
+This is a maintenance fork of [funcool/buddy-auth](https://github.com/funcool/buddy-auth).
+The README of that project said it was in maintenance mode and needed a new maintainer.
+This fork uses current `buddy-sign` and `tools.build`. It runs CI on Clojure 1.11 and
+1.12. It is published as `net.clojars.savya/buddy-auth`. Andrey Antukh and contributors
+did the original work.
 
 ## License
 

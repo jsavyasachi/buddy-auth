@@ -13,34 +13,28 @@
 ;; limitations under the License.
 
 (ns buddy.auth.protocols
-  "Main authentication and authorization abstractions
-  defined as protocols.")
+  "Main authentication and authorization abstractions defined as protocols.")
 
 (defprotocol IAuthentication
-  "Protocol that defines unified workflow steps for
-  all authentication backends."
+  "Protocol that defines workflow steps for all authentication backends."
   (-parse [_ request]
-    "Parse token from the request. If it returns `nil`
-    the `authenticate` phase will be skipped and the
-    handler will be called directly.")
+    "Parse a token from the request. If it returns `nil`, the `authenticate`
+    phase is skipped and the handler is called directly.")
   (-authenticate [_ request data]
-    "Given a request and parsed data (from previous step),
-    try to authenticate this data.
+    "Given a request and parsed data from the previous step, authenticate the data.
 
-    If this method returns not nil value, the request
-    will be considered authenticated and the value will
-    be attached to request under `:identity` attribute."))
+    If this method returns a non-nil value, the request is authenticated. The
+    value is attached to the request under the `:identity` attribute."))
 
 (defprotocol IAuthorization
-  "Protocol that defines unified workflow steps for
-  authorization exceptions."
+  "Protocol that defines workflow steps for authorization exceptions."
   (-handle-unauthorized [_ request metadata]
-    "This function is executed when a `NotAuthorizedException`
-    exception is intercepted by authorization wrapper.
+    "This function runs when an authorization wrapper intercepts a
+    `NotAuthorizedException`.
 
     It should return a valid ring response."))
 
 (defprotocol IAuthorizationdError
-  "Abstraction that allows the user to extend the exception
-  based authorization system with own types."
+  "Abstraction that lets a user extend the exception-based authorization system
+  with user-defined types."
   (-get-error-data [_] "Get error information."))

@@ -5,28 +5,29 @@ focused feature contributions are all welcome.
 
 ## Before you start
 
-- For anything beyond a trivial fix, **open an issue first** so we can agree on
-  the approach before you invest time.
-- Check existing issues and pull requests to avoid duplicate work.
+- For anything more than a trivial fix, **open an issue first**. This lets us
+  agree on the approach before you spend time on it.
+- Read the open issues and pull requests. Do not duplicate work.
 
 ## Development
 
-This is a Clojure library. You need a JDK and [Leiningen](https://leiningen.org/)
-(projects that have migrated to `deps.edn` use the Clojure CLI instead — see the
-README).
+This is a Clojure library. You need a JDK and [Leiningen](https://leiningen.org/).
+A project that moved to `deps.edn` uses the Clojure CLI instead. See the README.
 
 ```bash
 lein test     # run the test suite
 lein check    # AOT-compile; must be free of reflection warnings
 ```
 
-The bar for a mergeable change:
+A change is mergeable when it obeys these three rules:
 
-- **Tests first.** Add or update tests for the behavior you change; for a bug
-  fix, include a regression test that fails before your fix and passes after.
+- **Tests first.** Add or update the tests for the behavior you change. For a
+  bug fix, add a regression test. The test must fail before your fix and pass
+  after it.
 - **Green build.** `lein test` passes and `lein check` reports **zero**
   reflection warnings.
-- **No scope creep.** Keep each pull request to one logical change.
+- **One change for each pull request.** Keep each pull request to one logical
+  change.
 
 ## Commits and pull requests
 
@@ -38,5 +39,5 @@ The bar for a mergeable change:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the
-same license as this project (see `LICENSE` / the README).
+If you contribute, you agree that your contributions get the same license as
+this project (see `LICENSE` / the README).

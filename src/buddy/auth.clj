@@ -13,13 +13,11 @@
 ;; limitations under the License.
 
 (ns buddy.auth
-  "Authorization and Authentication primitives for
-  ring based applications."
+  "Authorization and authentication primitives for Ring-based applications."
   (:require [buddy.auth.protocols :as proto]))
 
 (defn authenticated?
-  "Return `true` if the `request` is an
-  authenticated request.
+  "Return `true` if the `request` is authenticated.
 
   This function checks the `:identity` key
   in the request."
@@ -27,10 +25,9 @@
   (boolean (:identity request)))
 
 (defn throw-unauthorized
-  "Throws a unauthorized exception.
+  "Throw an unauthorized exception.
 
-  Used as fast skip exception based
-  authorization primitive."
+  Use it as an exception-based authorization primitive."
   ([] (throw-unauthorized {}))
   ([errordata]
    (throw (ex-info "Unauthorized." {::type ::unauthorized

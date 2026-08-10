@@ -2,13 +2,13 @@
 
 ## Introduction
 
-_buddy-auth_ is a module that provides authentication and authorization
-facilites for ring and ring based web applications.
+_buddy-auth_ is a module that provides authentication and authorization for Ring
+and Ring-based web applications.
 
 
 ### Project Maturity
 
-_buddy-auth_ is a stable, mature library. This is a maintenance fork of
+_buddy-auth_ is a stable library. This is a maintenance fork of
 [funcool/buddy-auth](https://github.com/funcool/buddy-auth), published as
 `net.clojars.savya/buddy-auth`.
 
@@ -27,19 +27,18 @@ Leiningen:
 [net.clojars.savya/buddy-auth "3.1.1"]
 ```
 
-This package is intended to be used with *jdk>=8*.
+Use this package with *jdk>=8*.
 
 
 ## Authentication
 
 ### Introduction
 
-The buddy's approach for authentication is pretty simple and explicit.
-In contrast to the vast majority of authentication libraries that I know,
-_buddy_ does not mix authentication process with the authorization.
+The buddy approach to authentication is explicit. Unlike most authentication
+libraries, _buddy_ keeps authentication separate from authorization.
 
-It is implemented as a pluggable backend that can be picked as is or you can
-implement a new one with simple steps. This is a list of builtin backends:
+Authentication uses a pluggable backend. Use a built-in backend, or implement a
+new backend. These are the built-in backends:
 
 | Backend name  | Namespace                      |
 |---------------|--------------------------------|
@@ -50,28 +49,26 @@ implement a new one with simple steps. This is a list of builtin backends:
 | Encrypted JWT | `buddy.auth.backends/jwe`      |
 | JWKS          | `buddy.auth.backends/jwks`     |
 
-If you are not happy with the built-in backends, you can implement your own and
-use it with _buddy-auth_ middleware without any problems.
+If a built-in backend does not meet your needs, implement your own backend. You
+can use it with the _buddy-auth_ middleware.
 
-The authentication process works mainly in two steps:
+The authentication process has two steps:
 
-1. *parse*: that is responsible for analyzing the request and reading the auth
-   related data (e.g. `Authorization` header, url params, etc..)
-2. *auth*: with the data obtained from parse step, just try to authenticate the
-   request (e.g. simple access to database for obtaining the possible user, using
-   a self contained jws/jwe token, checking a key in the session, etc...)
+1. *parse*: this step reads the request and gets authentication data, such as
+   an `Authorization` header or URL parameters.
+2. *auth*: this step uses the data from the parse step to authenticate the
+   request, such as a database lookup, a self-contained jws/jwe token, or a
+   session key.
 
-This step does not raise any exceptions and is completely transparent to the
-user. It is the responsibility of the authentication process to determine if a request
-is anonymous or authenticated, nothing more.
+This step raises no exceptions. The authentication process determines if a
+request is anonymous or authenticated.
 
 ### Backends
 
 #### Http-Basic
 
-The HTTP Basic authentication backend is one of the simplest and most insecure
-authentication systems, but is a good first step to understanding how
-_buddy-auth_ authentication works.
+The HTTP Basic authentication backend is simple but insecure. It can help you
+learn how _buddy-auth_ authentication works.
 
 ```clojure
 (require '[ring.util.response :refer (response)])
@@ -86,11 +83,11 @@ _buddy-auth_ authentication works.
     (response "Hello Anonymous")))
 ```
 
-The basic step to check if a request is authenticated or not is just to check
-if it comes with an `:identity` key and it contains a logical `true` (exists and
-contains something different to `nil` or `false`).
+To check if a request is authenticated, look at the `:identity` key. The
+request is authenticated if the key exists and contains a logical `true` value.
+This value is different from `nil` and `false`.
 
-This is how the authentication backend should be setup:
+Set up the authentication backend like this:
 
 ```clojure
 (require '[buddy.auth.backends :as backends])
@@ -105,13 +102,12 @@ This is how the authentication backend should be setup:
                               :authfn my-authfn}))
 ```
 
-The `authfn` is responsible for the second step of authentication. It receives
-the parsed auth data from request and should return a logical true value (e.g a user
-id, user instance, mainly something different to `nil` and `false`). And it will
-be called only if step 1 (parse) returns something.
+The `authfn` does the second step of authentication. It receives the parsed
+auth data from the request. It must return a logical true value: a user id, a
+user instance, or something different to `nil` and `false`. _buddy-auth_ calls
+it only if step 1 (parse) returns something.
 
-And finally, you should wrap your ring handler with authentication and authorization
-middleware:
+Then wrap your Ring handler with the authentication and authorization middleware:
 
 ```clojure
 (require '[buddy.auth.middleware :refer [wrap-authentication
@@ -129,17 +125,15 @@ middleware:
              (wrap-authorization backend)))
 ```
 
-From now, all requests that reach `my-handler` will be properly authenticated.
+The authentication process runs for all requests that reach `my-handler`.
 
 
 #### Session
 
-The session backend has the simplest implementation because it relies entirely on
-ring session support.
+The session backend uses Ring session support.
 
-The authentication process of this backend consists of checking the `:identity`
-keyword in session. If it exists and is a logical true, it is automatically
-forwarded to the request under the `:identity` property.
+This backend checks the `:identity` keyword in the session. If it exists and is
+a logical true, the backend puts it in the request under the `:identity` property.
 
 ```clojure
 (require '[buddy.auth.backends :as backends])
@@ -155,11 +149,10 @@ forwarded to the request under the `:identity` property.
 
 #### Token
 
-This is a backend that uses tokens for authenticating the user. It behaves very
-similarly to the basic-auth backend with the difference that instead of
-authenticating with credentials it authenticates with a simple token.
+This backend uses tokens to authenticate the user. It behaves like the
+basic-auth backend, but it authenticates with a token instead of credentials.
 
-Let's see an example:
+This is an example:
 
 ```clojure
 (require '[buddy.auth.backends :as backends])
@@ -185,36 +178,33 @@ Let's see an example:
              (wrap-authentication backend)))
 ```
 
-The process of authentication of this backend consists in parsing the
-"Authorization" header, extracting the token and in case the token is extracted
-successfully, call the `authfn` with extracted token.
+This backend parses the "Authorization" header and extracts the token. If it
+extracts a token, it calls the `authfn` with that token.
 
 ```clojure
 Authorization: Token 45c1f5e3f05d0
 ```
 
-The `authfn` should return something that will be associated to the `:identity`
-key in the request.
+The `authfn` must return the value that _buddy-auth_ puts in the `:identity`
+key of the request.
 
-The responsability of _buddy_ is just parse request and call the user function to
-authenticate it. The token building and storage is a user responsability.
+_buddy_ only parses the request and calls the user function to authenticate it.
+You must build and store the tokens.
 
-You can see a complete example of using this backend <<example-token,here>>.
+You can see a complete example of this backend <<example-token,here>>.
 
 
 #### Signed JWT
 
-Is a backend that uses signed and self contained tokens to authenticate the user.
+This backend uses signed, self contained tokens to authenticate the user.
 
-It behaves very similarly to the _Token_ backend (previously explained) with the
-difference that this one does not need additional user defined logic to validate
-tokens, because as we said previously, everything is self contained.
+It behaves like the _Token_ backend above. This backend needs no user-defined
+logic to validate the tokens because each token is self-contained.
 
-This type of token mechanism enables a completely stateless authentication because the
-server does not need to store the token and related information, the token will
-contain all the needed information for authentication.
+This token mechanism provides stateless authentication. The server does not
+store the token or related data. The token contains the data for authentication.
 
-Let's see a demonstrative example:
+This is an example:
 
 ```
 (require '[buddy.auth.backends :as backends])
@@ -230,8 +220,8 @@ Let's see a demonstrative example:
              (wrap-authentication backend)))
 ```
 
-Now you should have a login endpoint in your ring application that will have the
-responsibility of generating valid tokens:
+Your ring application must also have a login endpoint. This endpoint generates
+the valid tokens:
 
 ```clojure
 (require '[buddy.sign.jwt :as jwt])
@@ -248,10 +238,10 @@ responsibility of generating valid tokens:
      :headers {:content-type "application/json"}}))
 ```
 
-For more details about jwt, see the
+For more information about jwt, see the
 link:https://funcool.github.io/buddy-sign/latest/#jwt[buddy-sign] documentation.
 
-Some valuable resources for learning about stateless authentication are:
+These resources give more information about stateless authentication:
 
 - http://lucumr.pocoo.org/2013/11/17/my-favorite-database/
 - http://www.niwi.nz/2014/06/07/stateless-authentication-with-api-rest/
@@ -259,15 +249,13 @@ Some valuable resources for learning about stateless authentication are:
 
 #### Encrypted JWT
 
-This backend is almost identical to the previous one (signed JWT).
+This backend is similar to the signed JWT backend.
 
-The main difference is that the backend uses JWE (Json Web Encryption) instead of
-JWS (Json Web Signature) and it has the advantage that the content of the token is
-encrypted instead of simply signed. This is useful when token may contain some
-additional user information that should not be public.
+This backend uses JWE (JSON Web Encryption) instead of JWS (JSON Web Signature).
+It encrypts the token content instead of only signing it. Use it when a token
+contains user data that must remain private.
 
-It will look similar to the previous (jws) example but instead uses jwe with
-asymmetric key encryption algorithm:
+This example uses jwe with an asymmetric encryption algorithm:
 
 ```clojure
 (require '[buddy.auth.backends :as backends])
@@ -290,7 +278,7 @@ asymmetric key encryption algorithm:
              (wrap-authentication backend)))
 ```
 
-The corresponding login endpoint should have a similar aspect to this:
+The login endpoint can look like this:
 
 ```clojure
 (require '[buddy.sign.jwt :as jwt])
@@ -308,31 +296,30 @@ The corresponding login endpoint should have a similar aspect to this:
      :headers {:content-type "application/json"})))
 ```
 
-In order to use any asymmetric encryption algorithm, you should have private/public
-key pair. If you don't have one, don't worry, it is very easy to generate it using
-*openssl*, see this link:https://funcool.github.io/buddy-sign/latest/#generate-keypairs[faq entry].
+To use an asymmetric encryption algorithm, you need a private and public key pair.
+Use *openssl* to generate a key pair. See this
+link:https://funcool.github.io/buddy-sign/latest/#generate-keypairs[FAQ entry].
 
 #### JWKS
 
-The signed and encrypted JWT backends above verify tokens against a key you hold
-locally. The JWKS backend instead validates signed JWTs against a JWK Set,
-typically a remote JWKS endpoint published by an identity provider (Auth0, Google,
-Okta, Keycloak, ...). This is the common pattern for validating OIDC access tokens:
-the provider signs tokens with rotating keys and publishes the public keys at a
-JWKS URL, and your service fetches and caches them.
+The signed and encrypted JWT backends above verify tokens with a local key. The
+JWKS backend validates signed JWTs with a JWK Set. An identity provider usually
+publishes this set at a remote JWKS endpoint. Providers include Auth0, Google,
+Okta, and Keycloak. The provider signs tokens with rotating keys and publishes
+the public keys at a JWKS URL. Your service fetches and caches the keys.
 
-This backend uses [jose-clj](https://github.com/jsavyasachi/jose-clj) (over Nimbus
-JOSE+JWT), which is an *optional* dependency: to keep buddy-auth lean for users who
-do not need it, jose-clj is not pulled in transitively. Add it to your project to
-use this backend (calling `backends/jwks` without it throws a clear error):
+This backend uses [jose-clj](https://github.com/jsavyasachi/jose-clj), which uses
+Nimbus JOSE+JWT. `jose-clj` is an *optional* dependency and is not transitive.
+Add it to your project to use this backend. Calling `backends/jwks` without it
+throws an error:
 
 ```clojure
 net.clojars.savya/jose-clj {:mvn/version "0.1.0"}   ; deps.edn
 [net.clojars.savya/jose-clj "0.1.0"]                ; Leiningen
 ```
 
-It requires JDK 11+ (via jose-clj). The bearer token is read from the `Authorization` header
-using the `Bearer` scheme by default.
+It requires JDK 11+ through jose-clj. By default, the backend reads a bearer
+token from the `Authorization` header with the `Bearer` scheme.
 
 ```clojure
 (require '[buddy.auth.backends :as backends])
@@ -350,48 +337,46 @@ using the `Bearer` scheme by default.
              (wrap-authentication backend)))
 ```
 
-The key set is fetched once and cached (the cache and its refresh live in the
-underlying source). On success, the request's `:identity` is the validated claims
-map. Verification and claim checks failing (bad signature, unknown key id,
-expired, issuer/audience mismatch, missing required claim) leave the request
-unauthenticated; pass an `:on-error` hook to observe the cause.
+The backend fetches the key set once and caches it. The underlying source handles
+the cache and its refresh. On success, the request's `:identity` is the validated
+claims map. A verification or claim check can fail because of a bad signature,
+unknown key ID, expiry, issuer or audience mismatch, or missing required claim.
+Such a failure leaves the request unauthenticated. Pass an `:on-error` hook to
+get the cause.
 
 Options:
 
 - `:jwks-url` - URL of a JWKS endpoint (mutually exclusive with `:source`).
-- `:source` - a prebuilt `jose.jwks` source (`remote-source` or `local-source`),
-  useful for tests or custom fetching.
+- `:source` - a prebuilt `jose.jwks` source (`remote-source` or `local-source`).
+  Use it for tests or custom fetches.
 - `:jwks-opts` - map passed to `jose.jwks/remote-source` (`:cache-ttl-ms`,
   `:connect-timeout-ms`, `:read-timeout-ms`, `:rate-limit-ms`).
 - `:options` - claim validation passed to jose-clj (`:iss`, `:aud`, `:clock-skew`,
   `:required`).
 - `:token-name` - the Authorization scheme, `"Bearer"` by default.
-- `:authfn` - transforms the validated claims into the request identity.
-- `:on-error` - `(fn [request exception] ...)` called when validation fails.
+- `:authfn` - transforms validated claims into the request identity.
+- `:on-error` - `(fn [request exception] ...)` runs when validation fails.
 
 
 ## Authorization
 
-The second part of the auth process is authorization.
+Authorization is the second part of the authentication process.
 
-The authorization system is split into two parts: generic authorization and
-access-rules (explained in the next section).
+The authorization system has two parts: generic authorization and access rules.
 
-The generic one is based on exceptions, and consists in raising an unauthorized
-exception in case the request is considered unauthorized. The access rules
-system is based on some kind of rules attached to the handler or an _URI_ and
-that rules determine if a request is authorized or not.
+Generic authorization raises an unauthorized exception for an unauthorized
+request. Access rules attach rules to a handler or a _URI_. These rules determine
+if a request is authorized.
 
 
 ### Exception-Based
 
-This authorization approach is based on wrapping everything in a try/catch block
-which only handles specific exceptions. When an unauthorized exception is caught,
-it executes a specific function to handle it or reraises the exception.
+This authorization method wraps code in a try/catch block for specific exceptions.
+When it catches an unauthorized exception, it runs a function or raises the
+exception again.
 
-With this approach, you can define your own middlewares/decorators using custom
-authorization logic with fast skip, raising an unauthorized exception using the
-`throw-unauthorized` function.
+Use this method to define middleware or decorators with custom authorization
+logic. Use `throw-unauthorized` to raise an unauthorized exception.
 
 ```clojure
 (require '[buddy.auth :refer [authenticated? throw-unauthorized]])
@@ -404,12 +389,10 @@ authorization logic with fast skip, raising an unauthorized exception using the
   (response "Hello World"))
 ```
 
-Just like the authentication system, authorization is also implemented using
-plugable backends.
+Authorization also uses pluggable backends.
 
-All built-in backends already implement the authorization protocol with default
-behavior. The default behavior can be overridden passing the `:unauthorized-handler`
-option to the backend constructor:
+All built-in backends implement the authorization protocol with default behavior.
+Pass `:unauthorized-handler` to the backend constructor to change this behavior:
 
 ```clojure
 (require '[buddy.auth.backends :as backends])
@@ -434,12 +417,12 @@ option to the backend constructor:
 
 ### Access Rules
 
-The access rules system is another part of authorization. It consists of matching
-an url to specific access rules logic.
+The access rules system is part of authorization. It matches a URL to access rule
+logic.
 
-The access rules consist of an ordered list that contains mappings between urls
-and rule handlers using link:https://github.com/weavejester/clout[clout] url
-matching syntax or regular expressions.
+Access rules are an ordered list of URL-to-rule-handler mappings. Use
+link:https://github.com/weavejester/clout[clout] URL matching syntax or regular
+expressions.
 
 ```clojure
 [{:uri "/foo"
@@ -456,10 +439,10 @@ matching syntax or regular expressions.
   :handler user-access}
 ```
 
-An access rule can also match against certain HTTP methods, by using the
-*:request-method* option. *:request-method* can be a keyword or a set of keywords.
+An access rule can also match HTTP methods with the *:request-method* option.
+*:request-method* can be a keyword or a set of keywords.
 
-An example of an access rule that matches only GET requests:
+This access rule matches only GET requests:
 
 ```clojure
 [{:uri "/foo"
@@ -470,15 +453,14 @@ An example of an access rule that matches only GET requests:
 
 #### Rules Handlers
 
-The rule handler is a plain function that accepts a request as a parameter and
-should return `accessrules/success` or `accessrules/error`.
+The rule handler is a plain function that accepts a request. It must return
+`accessrules/success` or `accessrules/error`.
 
-The `success` is a simple mark that means that handlers pass the validation and
-`error` is a mark that means the opposite, that the handler does not pass the
-validation. Instead of returning plain boolean values, this approach allows handlers
-to return errors messages or even a ring response.
+`success` marks a handler that passes validation. `error` marks a handler that
+does not pass validation. A handler can return error messages or a Ring response
+instead of a Boolean value.
 
-This is a simple example of the aspect of one rule handler:
+This is an example of a rule handler:
 
 ```clojure
 (require '[buddy.auth.accessrules :refer (success error)])
@@ -490,12 +472,11 @@ This is a simple example of the aspect of one rule handler:
     (error "Only authenticated users allowed")))
 ```
 
-These values are considered success marks: *true* and *success* instances. These are
-considered error  marks: *nil*, *false*, and *error* instances. Error instances may
-contain a string as an error message or a ring response hash-map.
+These values are success marks: *true* and *success* instances. These values are
+error marks: *nil*, *false*, and *error* instances. An error instance can contain
+an error message or a Ring response hash map.
 
-Also, a rule handler can be a composition of several rule handlers using logical
-operators.
+A rule handler can combine several rule handlers with logical operators.
 
 ```clojure
 {:and [authenticated-user other-handler]}
@@ -508,30 +489,27 @@ operators.
              should-be-authenticated]}]}}
 ```
 
-This is an example of how a composed rule handler can be used in an
-access rules list:
+This example uses a combined rule handler in an access rules list:
 
 ```clojure
 [{:pattern #"^/foo$"
   :handler {:and [authenticated-user admin-user]}}]
 ```
 
-Additionally, if you are using *clout* based syntax for matching access rules, the
-request in a rule handler will contain `:match-params` with clout matched uri params.
+With *clout* syntax, a request in a rule handler contains `:match-params` with
+the URI parameters that clout matches.
 
 
 #### Usage
 
-Now, knowing how access rules and rule handlers can be defined, it is time to see
-how we can use it in our ring applications.
+You can define and use access rules and rule handlers in Ring applications.
 
-_buddy-auth_ exposes two ways to do it:
+_buddy-auth_ provides two methods:
 
-* Using a _wrap-access-rules_ middleware.
-* Using a _restrict_ decorator for assigning specific rules handlers to concrete
-  ring handler.
+* Use _wrap-access-rules_ middleware.
+* Use a _restrict_ decorator to assign rule handlers to a Ring handler.
 
-Here are couple of examples of how we could do it:
+These examples show these methods:
 
 ```clojure
 ;; Rules handlers used on this example are ommited for code clarity
@@ -564,13 +542,12 @@ Here are couple of examples of how we could do it:
     (run-jetty app {:port 3000})))
 ```
 
-If a request uri does not match any regular expression then the default policy is
-used. The default policy in _buddy-auth_ is *allow* but you can change the default
-behavior specifying a `:reject` value in the `:policy` option.
+If a request URI does not match a regular expression, the default policy applies.
+The default policy in _buddy-auth_ is *allow*. Set `:policy` to `:reject` to
+change the default behavior.
 
-Additionally, instead of specifying the global _on-error_ handler, you can set a
-specific behavior on a specific access rule, or use the _:redirect_ option to
-simply redirect a user to specific url.
+Instead of a global _on-error_ handler, set behavior on an access rule. You can
+also use the _:redirect_ option to redirect a user to a URL.
 
 ```clojure
 (def rules [{:pattern #"^/admin/.*"
@@ -583,11 +560,10 @@ simply redirect a user to specific url.
              :on-error (fn [req _] (response "Not authorized ;)"))}])
 ```
 
-The access rule options always takes precedence over the global ones.
+The access rule options take precedence over the global options.
 
-Then, if you don't want an external rules list and simply want to apply some rules
-to specific ring views/handlers, you can use the `restrict` decorator. Let's see it
-in action:
+Use the `restrict` decorator when you apply rules to specific Ring views or
+handlers without an external rules list:
 
 ```clojure
 (require '[buddy.auth.accessrules :refer [restrict]])
@@ -606,10 +582,10 @@ in action:
 
 ### Http Basic Auth Example
 
-This example tries to show the way to setup http basic auth in a simple ring based
+This example shows how to set up HTTP Basic authentication in a simple Ring-based
 application.
 
-Just run the following commands:
+Run these commands:
 
 ```
 git clone https://github.com/funcool/buddy-auth.git
@@ -617,20 +593,20 @@ cd ./buddy-auth/
 lein with-profile +httpbasic-example run
 ```
 
-And redirect your browser to http://localhost:3000/.
+Open http://localhost:3000/ in a browser.
 
 The credentials are: `admin` / `secret` and `test` / `secret`.
 
-You can see the example code here:
+The example code is here:
 https://github.com/funcool/buddy-auth/tree/master/examples/httpbasic
 
 
 ### Session Auth Example
 
-This example tries to show the way to setup session based auth in a simple ring
-based application.
+This example shows how to set up session-based authentication in a simple
+Ring-based application.
 
-Just run the following commands:
+Run these commands:
 
 ```
 git clone https://github.com/funcool/buddy-auth.git
@@ -638,20 +614,20 @@ cd ./buddy-auth/
 lein with-profile +session-example run
 ```
 
-And redirect your browser to http://localhost:3000/.
+Open http://localhost:3000/ in a browser.
 
 The credentials are: `admin` / `secret` and `test` / `secret`.
 
-You can see the example code here:
+The example code is here:
 https://github.com/funcool/buddy-auth/tree/master/examples/session
 
 
 ### Token Auth Example
 
-This example tries to show the way to setup token based auth in a simple ring based
+This example shows how to set up token-based authentication in a simple Ring-based
 application.
 
-Just run the following commands:
+Run these commands:
 
 ```
 git clone https://github.com/funcool/buddy-auth.git
@@ -659,7 +635,7 @@ cd ./buddy-auth/
 lein with-profile +token-example run
 ```
 
-You can use *curl* for play with the authentication example:
+Use *curl* with the authentication example:
 
 ```
 $ curl -v -X POST -H "Content-Type: application/json" -d '{"username": "admin", "password": "secret"}' http://localhost:3000/login
@@ -702,16 +678,16 @@ $ curl -v -X GET -H "Content-Type: application/json" -H "Authorization: Token fe
 {"status":"Logged","message":"hello logged user:admin"}
 ```
 
-You can see the example code here:
+The example code is here:
 https://github.com/funcool/buddy-auth/tree/master/examples/token
 
 
 ### JWE Token Auth Example
 
-This example tries to show the way to setup jwe stateless token based auth in a
-simple ring based application.
+This example shows how to set up JWE stateless token-based authentication in a
+simple Ring-based application.
 
-Just run the following commands:
+Run these commands:
 
 ```
 git clone https://github.com/funcool/buddy-auth.git
@@ -719,7 +695,7 @@ cd ./buddy-auth/
 lein with-profile +jwe-example run
 ```
 
-You can use *curl* for play with the authentication example:
+Use *curl* with the authentication example:
 
 ```
 $ curl -v -X POST -H "Content-Type: application/json" -d '{"username": "admin", "password": "secret"}' http://localhost:3000/login
@@ -742,7 +718,7 @@ $ curl -v -X POST -H "Content-Type: application/json" -d '{"username": "admin", 
 {"token":"eyJhbGciOiJBMjU2S1ciLCJ0eXAiOiJKV1MiLCJlbmMiOiJBMTI4R0NNIn0.Q672y_lD3bOU_qm5U0RDKS-YszRHfkFu.vDZaAJPz8uL5q1A4.LonJtHZMA_Ty53YBmr1zpE7-SIbTJgVgme--Tjj25dHN.goYEyM3JZgYlbARo8CDk0g"}
 ```
 
-Perform an authenticated request (using previously obtained token):
+Send an authenticated request with the token:
 
 ```
 $ curl -v -X GET -H "Content-Type: application/json" -H "Authorization: Token eyJhbGciOiJBMjU2S1ciLCJ0eXAiOiJKV1MiLCJlbmMiOiJBMTI4R0NNIn0.Q672y_lD3bOU_qm5U0RDKS-YszRHfkFu.vDZaAJPz8uL5q1A4.LonJtHZMA_Ty53YBmr1zpE7-SIbTJgVgme--Tjj25dHN.goYEyM3JZgYlbARo8CDk0g" http://localhost:3000/
@@ -764,16 +740,16 @@ $ curl -v -X GET -H "Content-Type: application/json" -H "Authorization: Token ey
 {"status":"Logged","message":"hello logged user {:user \"admin\", :exp 1451919131}"}
 ```
 
-You can see the example code here:
+The example code is here:
 https://github.com/funcool/buddy-auth/tree/master/examples/jwe
 
 
 ### Signed JWT Auth Example
 
-This example tries to show the way to setup jws stateless token based auth in a
-simple ring based application.
+This example shows how to set up JWS stateless token-based authentication in a
+simple Ring-based application.
 
-Just run the following commands:
+Run these commands:
 
 ```
 git clone https://github.com/funcool/buddy-auth.git
@@ -781,7 +757,7 @@ cd ./buddy-auth/
 lein with-profile +jws-example run
 ```
 
-You can use *curl* for play with the authentication example:
+Use *curl* with the authentication example:
 
 ```
 $ curl -v -X POST -H "Content-Type: application/json" -d '{"username": "admin", "password": "secret"}' http://localhost:3000/login
@@ -803,7 +779,7 @@ $ curl -v -X POST -H "Content-Type: application/json" -d '{"username": "admin", 
 {"token":"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXUyJ9.eyJ1c2VyIjoiYWRtaW4iLCJleHAiOjE0NTE5MTg5NzB9.Kvpr1jW7JBCZYUlFjAf7xnqMZSTpSVggAgiZ6_RGZuTi1wUuP_-E8MJff23GuCwpT9bbbHNTk84uV2cdg7rKTw"}
 ```
 
-Perform an authenticated request (using previously obtained token):
+Send an authenticated request with the token:
 
 ```
 $ curl -v -X GET -H "Content-Type: application/json" -H "Authorization: Token eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXUyJ9.eyJ1c2VyIjoiYWRtaW4iLCJleHAiOjE0NTE5MTg5NzB9.Kvpr1jW7JBCZYUlFjAf7xnqMZSTpSVggAgiZ6_RGZuTi1wUuP_-E8MJff23GuCwpT9bbbHNTk84uV2cdg7rKTw" http://localhost:3000/
@@ -825,7 +801,7 @@ $ curl -v -X GET -H "Content-Type: application/json" -H "Authorization: Token ey
 {"status":"Logged","message":"hello logged user {:user \"admin\", :exp 1451918970}"}
 ```
 
-You can see the example code here:
+The example code is here:
 https://github.com/funcool/buddy-auth/tree/master/examples/jws
 
 
@@ -833,24 +809,22 @@ https://github.com/funcool/buddy-auth/tree/master/examples/jws
 
 *What is the difference with Friend?*
 
-_buddy-auth_ authorization/authentication facilities are more low level and less
-opinionated than friend, and allow you to easily build other high level abstractions
-over them. Technically, friend abstraction can be built on top of _buddy-auth_.
+_buddy-auth_ authentication and authorization facilities are lower level and less
+opinionated than Friend. You can build higher-level abstractions on them. A Friend
+abstraction can use _buddy-auth_.
 
 
 *How can I use _buddy_ with link:http://clojure-liberator.github.io/liberator/[liberator]?*
 
-By design, _buddy_ has authorization and authentication well
-separated. This helps a lot if you want use only one part of it (ex:
-authentication only) without including the other.
+By design, _buddy_ separates authorization from authentication. You can use one
+part without including the other.
 
 In summary: yes, you can use _buddy-auth_ with liberator.
 
 
 *Can I use _buddy-auth_ with pedestal?*
 
-Although is not mentioned in this documentation, you can use _buddy-auth_ with
-pedestal without any problems.
+You can use _buddy-auth_ with Pedestal.
 
 https://juxt.pro/blog/posts/securing-your-clojurescript-app.html
 
@@ -859,24 +833,22 @@ https://juxt.pro/blog/posts/securing-your-clojurescript-app.html
 
 Not directly.
 
-The design of _buddy-auth_ api is intrinsically blocking just because ring and ring
-based abstractions are also blocking. However _catacumba_ is asyncronous toolkit and
-it comes with its own, builtint variant of _buddy-auth_ designed for asynchronous
-workflow (reusing the underlying _buddy-sign_, _buddy-core_ and _buddy-hashers_
-modules).
+The _buddy-auth_ API blocks because Ring and Ring-based abstractions block.
+_catacumba_ is an asynchronous toolkit. It includes its own _buddy-auth_ variant
+for asynchronous workflows. This variant reuses _buddy-sign_, _buddy-core_, and
+_buddy-hashers_.
 
 
 ## Developers Guide
 
 ### Contributing
 
-Unlike Clojure and other Clojure contributed libraries _buddy-auth_ does not have many
-restrictions for contributions. Just open an issue or pull request.
+_buddy-auth_ has few contribution restrictions. Open an issue or pull request.
 
 
 ### Philosophy
 
-Five most important rules:
+Five important rules:
 
 - Beautiful is better than ugly.
 - Explicit is better than implicit.
@@ -884,12 +856,13 @@ Five most important rules:
 - Complex is better than complicated.
 - Readability counts.
 
-All contributions to _buddy-auth_ should keep these important rules in mind.
+All contributions to _buddy-auth_ should follow these rules.
 
 
 ### Get the Code
 
-_buddy-auth_ is open source and can be found on link:https://github.com/funcool/buddy-auth[github].
+_buddy-auth_ is open source. It is on
+link:https://github.com/funcool/buddy-auth[GitHub].
 
 You can clone the public repository with this command:
 
@@ -900,7 +873,7 @@ git clone https://github.com/funcool/buddy-auth
 
 ### Run tests
 
-For running tests just execute this:
+Run the tests:
 
 ```bash
 lein test
@@ -909,5 +882,5 @@ lein test
 
 ### License
 
-_buddy-auth_ is licensed under Apache 2.0 License. You can see the complete text
-of the license on the root of the repository on `LICENSE` file.
+_buddy-auth_ uses the Apache License 2.0. The `LICENSE` file at the repository
+root contains the full license text.

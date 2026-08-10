@@ -13,7 +13,7 @@
 ;; limitations under the License.
 
 (ns buddy.auth.backends.httpbasic
-  "The http-basic authentication and authorization backend."
+  "The HTTP Basic authentication and authorization backend."
   (:require [buddy.auth.protocols :as proto]
             [buddy.auth.http :as http]
             [buddy.auth :refer [authenticated?]]
@@ -22,8 +22,7 @@
             [clojure.string :as str]))
 
 (defn- parse-header
-  "Given a request, try to extract and parse
-  the http basic header."
+  "Extract and parse the HTTP Basic header from a request."
   [request]
   (let [pattern (re-pattern "^Basic (.+)$")
         decoded (some->> (http/-get-header request "authorization")

@@ -13,7 +13,7 @@
 ;; limitations under the License.
 
 (ns buddy.auth.backends.jwks
-  "The JWKS based authentication and authorization backend."
+  "The JWKS authentication and authorization backend."
   (:require [buddy.auth.protocols :as proto]
             [buddy.auth.http :as http]
             [buddy.auth :refer [authenticated?]]
@@ -23,7 +23,7 @@
 (set! *warn-on-reflection* true)
 
 (defn- handle-unauthorized-default
-  "A default response constructor for an unauthorized request."
+  "Create the default response for an unauthorized request."
   [request]
   (if (authenticated? request)
     {:status 403 :headers {} :body "Permission denied"}
@@ -51,10 +51,10 @@
     (throw (IllegalArgumentException. "Expected exactly one of :source or :jwks-url"))))
 
 (defn jwks-backend
-  "Creates a JWKS authentication backend.
+  "Create a JWKS authentication backend.
 
-  :options must contain :algs (or :alg) to declare the expected JWT
-  algorithm. For example, pass :options {:algs #{:rs256}}."
+  :options must contain :algs or :alg to declare the expected JWT algorithm.
+  For example, pass :options {:algs #{:rs256}}."
   [{:keys [authfn unauthorized-handler options token-name on-error]
     :as opts
     :or {authfn identity options {} token-name "Bearer"}}]

@@ -23,13 +23,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn authenticate-request
-  "A function that runs the authentication backend chain for
-  the provided request and return the identity of the first
-  matched backend (backend that properly authenticates the
-  provided request).
+  "Run the authentication backend chain for a request. Return the identity of
+  the first backend that authenticates the request.
 
-  NOTE: this function is for internal use, it is public
-  because it is helpful in environments different to ring."
+  This public function is for internal use. It helps in environments other than Ring."
   [request backends]
   (loop [[backend & backends] backends]
     (when backend
@@ -40,20 +37,18 @@
             (recur backends))))))
 
 (defn authentication-request
-  "Updates request with authentication. If multiple `backends` are
-  given each of them gets a chance to authenticate the request.
+  "Update a request with authentication. If multiple `backends` are given,
+  each backend can authenticate the request.
 
-  NOTE: this function is for internal use, it is public
-  because it is helpful in environments different to ring."
+  This public function is for internal use. It helps in environments other than Ring."
   [request & backends]
   (if-let [authdata (authenticate-request request backends)]
     (assoc request :identity authdata)
     request))
 
 (defn wrap-authentication
-  "Ring middleware that enables authentication for your ring
-  handler. When multiple `backends` are given each of them gets a
-  chance to authenticate the request."
+  "Ring middleware that enables authentication for a Ring handler. If multiple
+  `backends` are given, each backend can authenticate the request."
   [handler & backends]
   (fn
     ([request]
@@ -66,9 +61,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- fn->authorization-backend
-  "Given a function that receives two parameters
-  return an anonymous object that implements
-  IAuthorization protocol."
+  "Given a function with two parameters, return an anonymous object that
+  implements the IAuthorization protocol."
   [callable]
   {:pre [(fn? callable)]}
   (reify
@@ -77,11 +71,10 @@
       (callable request errordata))))
 
 (defn authorization-error
-  "Handles authorization errors.
+  "Handle authorization errors.
 
-  The `backend` parameter should be a plain function
-  that accepts two parameters: request and errordata hashmap,
-  or an instance that satisfies IAuthorization protocol."
+  The `backend` parameter must be a function that accepts a request and errordata
+  hash map, or an instance that satisfies the IAuthorization protocol."
   [request e backend]
   (let [backend (cond
                   (fn? backend)
@@ -101,13 +94,10 @@
         (throw e)))))
 
 (defn wrap-authorization
-  "Ring middleware that enables authorization
-  workflow for your ring handler.
+  "Ring middleware that enables an authorization workflow for a Ring handler.
 
-  The `backend` parameter should be a plain function
-  that accepts two parameters: request and errordata
-  hashmap, or an instance that satisfies IAuthorization
-  protocol."
+  The `backend` parameter must be a function that accepts a request and errordata
+  hash map, or an instance that satisfies the IAuthorization protocol."
   [handler backend]
   (fn
     ([request]

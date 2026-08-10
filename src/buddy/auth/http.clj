@@ -13,11 +13,11 @@
 ;; limitations under the License.
 
 (ns buddy.auth.http
-  "The http request response abstraction for
-  builtin auth/authz backends.")
+  "The HTTP request and response abstraction for built-in authentication and
+  authorization backends.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Protocols Definition
+;; Protocol definitions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol IRequest
@@ -28,8 +28,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn response
-  "A multi arity function that creates
-  a ring compatible response."
+  "Create a Ring-compatible response with multiple arities."
   ([body]
    {:status 200 :body body :headers {}})
   ([body status]
@@ -50,8 +49,8 @@
    {:status  status :body "" :headers {"Location" url}}))
 
 (defn find-header
-  "Looks up a header in a headers map case insensitively,
-  returning the header map entry, or nil if not present."
+  "Look up a header in a headers map without case sensitivity.
+  Return the header map entry or nil."
   [headers ^String header-name]
   (first (filter #(.equalsIgnoreCase header-name (name (key %))) headers)))
 

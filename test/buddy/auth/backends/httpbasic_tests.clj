@@ -30,14 +30,14 @@
    {:authfn auth-fn :realm "Foo"}))
 
 (deftest httpbasic-parse-test
-  (testing "Parse httpbasic header from request"
+  (testing "Parse an HTTP Basic header from a request"
     (let [parse #'httpbasic/parse-header
           request (make-request "foo" "bar")
           parsed  (parse request)]
       (is (not (nil? parsed)))
       (is (= (:password parsed) "bar"))
       (is (= (:username parsed) "foo"))))
-  (testing "Parse httpbasic header from request with colon in password"
+  (testing "Parse an HTTP Basic header with a colon in the password"
     (let [parse #'httpbasic/parse-header
           request (make-request "foo" "bar:baz")
           parsed  (parse request)]
@@ -46,25 +46,25 @@
       (is (= (:username parsed) "foo")))))
 
 (deftest httpbasic-auth-backend
-  (testing "Testing anon request"
+  (testing "Authenticate an anonymous request"
     (let [handler (wrap-authentication identity backend)
           request (make-request)
           response (handler request)]
       (is (= (:identity response) nil))))
 
-  (testing "Test wrong request"
+  (testing "Reject an invalid request"
     (let [handler (wrap-authentication identity backend)
           request (make-request "test" "test")
           response (handler request)]
       (is (= (:identity response) :invalid))))
 
-  (testing "Test auth request"
+  (testing "Authenticate a request"
     (let [handler (wrap-authentication identity backend)
           request (make-request "foo" "bar")
           response (handler request)]
       (is (= (:identity response) :valid))))
 
-  (testing "Authorization middleware tests 01"
+  (testing "Return 401 for an unauthenticated request"
     (let [handler (-> (fn [req] (if (nil? (:identity req))
                                   (throw-unauthorized {:msg "FooMsg"})
                                   req))
@@ -74,7 +74,7 @@
           response (handler request)]
       (is (= (:identity response) :invalid))))
 
-  (testing "Authorization middleware tests 02 with httpbasic backend"
+  (testing "Use an HTTP Basic backend for authorization"
     (let [handler (-> (fn [req] (if (nil? (:identity req))
                                   (throw-unauthorized {:msg "FooMsg"})
                                   req))
@@ -84,7 +84,7 @@
           response (handler request)]
       (is (= (:identity response) :valid))))
 
-  (testing "Authorization middleware tests 03 with httpbasic backend"
+  (testing "Return 403 for an authenticated unauthorized request"
     (let [handler (-> (fn [req] (throw-unauthorized {:msg "FooMsg"}))
                       (wrap-authorization backend)
                       (wrap-authentication backend))

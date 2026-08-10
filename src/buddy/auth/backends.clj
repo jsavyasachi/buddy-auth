@@ -13,21 +13,18 @@
 ;; limitations under the License.
 
 (ns buddy.auth.backends
-  ;; buddy.auth.backends.jwks is intentionally NOT required here: it depends on
-  ;; the optional jose-clj library, and requiring it statically would force that
-  ;; dependency on every buddy-auth user. It is loaded lazily by `jwks` below.
+  ;; buddy.auth.backends.jwks is not required here. It depends on the optional
+  ;; jose-clj library. A static require would add this dependency for every
+  ;; buddy-auth user. `jwks` loads it when needed.
   (:require [buddy.auth.backends.httpbasic :as httpbasic]
             [buddy.auth.backends.token :as token]
             [buddy.auth.backends.session :as session]))
 
 (defn basic
-  "Create an instance of the http-basic based
-  authentication backend.
+  "Create an HTTP Basic authentication backend.
 
-  This backend also implements authorization
-  workflow with some defaults. This means that
-  you can provide your own unauthorized-handler hook
-  if the default one does not satisfy you."
+  This backend also implements an authorization workflow with default behavior.
+  Provide an unauthorized-handler hook to change the default behavior."
   ([] (basic nil))
   ([opts] (httpbasic/http-basic-backend opts)))
 
@@ -36,54 +33,41 @@
   basic)
 
 (defn session
-  "Create an instance of the http session based
-  authentication backend.
+  "Create an HTTP session authentication backend.
 
-  This backend also implements authorization
-  workflow with some defaults. This means that
-  you can provide your own unauthorized-handler hook
-  if the default one does not satisfy you."
+  This backend also implements an authorization workflow with default behavior.
+  Provide an unauthorized-handler hook to change the default behavior."
   ([] (session nil))
   ([opts] (session/session-backend opts)))
 
 (defn jws
-  "Create an instance of the jws (signed JWT)
-  based authentication backend.
+  "Create a JWS signed JWT authentication backend.
 
-  This backend also implements authorization workflow
-  with some defaults. This means that you can provide
-  your own unauthorized-handler hook if the default one
-  does not satisfy you."
+  This backend also implements an authorization workflow with default behavior.
+  Provide an unauthorized-handler hook to change the default behavior."
   ([] (jws nil))
   ([opts] (token/jws-backend opts)))
 
 (defn jwe
-  "Create an instance of the jwe (encrypted JWT
-  based authentication backend.
+  "Create a JWE encrypted JWT authentication backend.
 
-  This backend also implements authorization workflow
-  with some defaults. This means that you can provide
-  your own unauthorized-handler hook if the default one
-  does not satisfy you."
+  This backend also implements an authorization workflow with default behavior.
+  Provide an unauthorized-handler hook to change the default behavior."
   ([] (jwe nil))
   ([opts] (token/jwe-backend opts)))
 
 (defn jwks
-  "Create an instance of the JWKS based authentication
-  backend.
+  "Create a JWKS authentication backend.
 
   This backend validates bearer tokens against a JWK Set
-  or JWKS endpoint and supports full claim validation via
-  the :options map.
+  or JWKS endpoint. It supports claim validation with the :options map.
 
-  Requires the optional `net.clojars.savya/jose-clj`
-  dependency on the classpath; add it to your project to
-  use this backend. A clear exception is thrown otherwise.
+  This backend requires the optional `net.clojars.savya/jose-clj` dependency
+  on the classpath. Add it to your project to use this backend. Otherwise, it
+  throws an exception.
 
-  This backend also implements authorization workflow
-  with some defaults. This means that you can provide
-  your own unauthorized-handler hook if the default one
-  does not satisfy you."
+  This backend also implements an authorization workflow with default behavior.
+  Provide an unauthorized-handler hook to change the default behavior."
   ([opts]
    (try
      (require 'buddy.auth.backends.jwks)
@@ -96,12 +80,9 @@
    ((resolve 'buddy.auth.backends.jwks/jwks-backend) opts)))
 
 (defn token
-  "Create an instance of the generic token based
-  authentication backend.
+  "Create a generic token authentication backend.
 
-  This backend also implements authorization workflow
-  with some defaults. This means that you can provide
-  your own unauthorized-handler hook if the default one
-  does not satisfy you."
+  This backend also implements an authorization workflow with default behavior.
+  Provide an unauthorized-handler hook to change the default behavior."
   ([] (token nil))
   ([opts] (token/token-backend opts)))

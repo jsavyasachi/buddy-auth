@@ -13,7 +13,7 @@
 ;; limitations under the License.
 
 (ns buddy.auth.accessrules
-  "Access Rules system for ring based applications."
+  "Access rules system for Ring-based applications."
   (:require [buddy.auth :refer [throw-unauthorized]]
             [buddy.auth.http :as http]
             [clojure.walk :refer [postwalk]]
@@ -25,7 +25,7 @@
 
 (defprotocol IRuleHandlerResponse
   "Abstraction for uniform handling of rule handler return values.
-  It comes with default implementation for nil and boolean types."
+  It has a default implementation for nil and Boolean types."
   (success? [_] "Check if a response is a success.")
   (get-value [_] "Get a handler response value."))
 
@@ -74,14 +74,12 @@
 (alter-meta! #'->RuleError assoc :private true)
 
 (defn success
-  "Function that returns a success state
-  from one access rule handler."
+  "Return a success state from an access rule handler."
   ([] (RuleSuccess. nil))
   ([v] (RuleSuccess. v)))
 
 (defn error
-  "Function that returns a failure state
-  from one access rule handler."
+  "Return a failure state from an access rule handler."
   ([] (RuleError. nil))
   ([v] (RuleError. v)))
 
@@ -90,32 +88,27 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn compile-rule-handler
-  "Receives a rule handler and returns a compiled version of it.
+  "Receive a rule handler and return its compiled version.
 
-  The compiled version of a rule handler consists of
-  one function that accepts a request as first parameter
-  and returns the result of the evaluation of it.
+  The compiled rule handler is a function. It accepts a request as its first
+  parameter and returns its evaluation result.
 
-  The rule can be a simple function or logical expression. Logical
-  expression is expressed using a hashmap:
+  The rule can be a function or a logical expression. Use a hash map for a
+  logical expression:
 
       {:or [f1 f2]}
       {:and [f1 f2]}
 
-  Logical expressions can be nested as deep as you want:
+  You can nest logical expressions:
 
       {:or [f1 {:and [f2 f3]}]}
 
-  The rule handler as unit of work, should return a
-  `success` or `error`. `success` is a simple mark that
-  means that handler passes the validation and `error`
-  is a mark that means that rule does not pass the
-  validation.
+  A rule handler must return `success` or `error`. `success` marks a handler
+  that passes validation. `error` marks a rule that does not pass validation.
 
-  An error mark can return a ring response that will be
-  returned to the http client or string message that will be
-  passed to `on-error` handler if it exists, or returned as
-  bad-request response with message as response body.
+  An error mark can return a Ring response to the HTTP client. It can return a
+  string message to an `on-error` handler. If no handler exists, it returns a
+  bad-request response with the message as its body.
 
   Example of success marks:
 
@@ -132,7 +125,7 @@
   [rule]
   (postwalk (fn [form]
               (cond
-               ;; In this case is a handler
+               ;; This form is a handler.
                (fn? form)
                (fn [req] (form req))
 
@@ -158,8 +151,8 @@
             rule))
 
 (defn- matches-request-method
-  "Match the :request-method of `request` against `allowed` HTTP
-  methods. `allowed` can be a keyword, a set of keywords or nil."
+  "Match the :request-method of `request` against `allowed` HTTP methods.
+  `allowed` can be a keyword, a set of keywords, or nil."
   [request allowed]
   (let [actual (:request-method request)]
     (cond
@@ -173,47 +166,39 @@
       :else true)))
 
 (defn  compile-access-rule
-  "Receives an access rule and returns a compiled version of it.
+  "Receive an access rule and return its compiled version.
 
-  The plain version of access rule consists of one hash-map with
-  with `:uri` and `:handler` keys. `:uri` is a url match syntax
-  that will be used for matching the url and `:handler` is a rule
-  handler.
+  An uncompiled access rule is a hash map with `:uri` and `:handler` keys.
+  `:uri` uses URL match syntax. `:handler` is a rule handler.
 
-  Little overview of aspect of access rules:
+  Example access rules:
 
       [{:uri \"/foo\"
         :handler user-access}
        {:uris [\"/bar\" \"/baz\"]
         :handler admin-access}]
 
-  The clout library (https://github.com/weavejester/clout)
-  for matching the `:uri`.
+  The clout library (https://github.com/weavejester/clout) matches the `:uri`.
 
-  It also has support for more advanced matching using plain
-  regular expressions, which are matched against the full
-  request uri:
+  It also supports regular expressions. They match the full request URI:
 
       [{:pattern #\"^/foo$\"
         :handler user-access}
 
-  An access rule can also match against certain HTTP methods, by using
-  the `:request-method` option. `:request-method` can be a keyword or
-  a set of keywords.
+  An access rule can also match HTTP methods with `:request-method`.
+  `:request-method` can be a keyword or a set of keywords.
 
       [{:pattern #\"^/foo$\"
         :handler user-access
         :request-method :get}
 
-  The compilation process consists in transforming the plain version
-  into an optimized one in order to avoid unnecessary overhead to the
-  request process time.
+  Compilation changes the uncompiled access rule to avoid overhead during
+  request processing.
 
-  The compiled version of access rule has a very similar format with
-  the plain one. The difference is that `:handler` is a compiled
-  version, and `:pattern` or `:uri` is replaced by matcher function.
+  The compiled access rule has a similar format. Its `:handler` is compiled.
+  A matcher function replaces `:pattern` or `:uri`.
 
-  Little overview of aspect of compiled version of acces rule:
+  Example compiled access rule:
 
       [{:matcher #<accessrules$compile_access_rule$fn__13092$fn__13095...>
         :handler #<accessrules$compile_rule_handler$fn__14040$fn__14043...>
@@ -255,14 +240,13 @@
 (defn compile-access-rules
   "Compile a list of access rules.
 
-  For more information, see the docstring
-  of `compile-access-rule` function."
+  See the `compile-access-rule` docstring for more information."
   [accessrules]
   (mapv compile-access-rule accessrules))
 
 (defn- match-access-rules
-  "Iterates over all access rules and try to match each one
-  in order. Return the first matched access rule or nil."
+  "Iterate over access rules and match each rule in order.
+  Return the first matching access rule or nil."
   [accessrules request]
   (reduce (fn [acc accessrule]
             (let [matcher (:matcher accessrule)
@@ -273,15 +257,12 @@
           accessrules))
 
 (defn handle-error
-  "Handles the error situation when access rules are
-  evaluated in `wrap-access-rules` middleware.
+  "Handle errors when `wrap-access-rules` middleware evaluates access rules.
 
-  It receives a handler response (anything that rule handler may
-  return), a current request and a hashmap passwd to the access
-  rule definition.
+  It receives a handler response, a request, and a hash map passed to the
+  access rule definition.
 
-  The received response has to satisfy the
-  IRuleHandlerResponse protocol."
+  The response must satisfy the IRuleHandlerResponse protocol."
   {:no-doc true}
   ([response request {:keys [reject-handler on-error redirect]}]
    {:pre [(satisfies? IRuleHandlerResponse response)]}
@@ -312,8 +293,7 @@
        (raise e)))))
 
 (defn- apply-matched-access-rule
-  "Simple helper that executes the rule handler
-  of received access rule and returns the result."
+  "Run the rule handler of an access rule and return its result."
   [match request]
   {:pre [(map? match)
          (contains? match :handler)]}
@@ -324,11 +304,9 @@
         (handler))))
 
 (defn wrap-access-rules
-  "A ring middleware that helps to define access rules for
-  ring handler.
+  "Ring middleware that defines access rules for a Ring handler.
 
-  This is an example of access rules list that `wrap-access-rules`
-  middleware expects:
+  `wrap-access-rules` middleware expects an access rules list like this:
 
       [{:uri \"/foo/*\"
         :handler user-access}
@@ -337,11 +315,9 @@
        {:uri \"/baz/*\"
         :handler {:and [user-access {:or [admin-access operator-access]}]}}]
 
-  All access rules are evaluated in order and the process stops when
-  a match is found.
+  The middleware evaluates access rules in order. It stops when it finds a match.
 
-  See docstring of `compile-rule-handler` for documentation
-  about rule handlers."
+  See the `compile-rule-handler` docstring for rule handler information."
   [handler & [{:keys [policy rules] :or {policy :allow} :as opts}]]
   (when (nil? rules)
     (throw (IllegalArgumentException. "rules should not be empty.")))
@@ -367,9 +343,8 @@
            :reject (handle-error (error nil) request opts respond raise)))))))
 
 (defn restrict
-  "Like `wrap-access-rules` middleware but works as
-  decorator. It is intended to be used with compojure routing
-  library or similar. Example:
+  "Like `wrap-access-rules` middleware, but it works as a decorator.
+  Use it with the compojure routing library or a similar library. Example:
 
       (defn login-ctrl [req] ...)
       (defn admin-ctrl [req] ...)
@@ -379,9 +354,8 @@
         (GET \"/admin\" [] (restrict admin-ctrl {:handler admin-access ;; Mandatory
                                                  :on-error my-reject-handler)
 
-  This decorator allows using the same access rules but without
-  any url matching algorithm, however it has the disadvantage of
-  accoupling your routers code with access rules."
+  This decorator uses the same access rules without a URL matching algorithm.
+  It couples router code with access rules."
   [handler rule]
   (let [match (compile-access-rule rule)]
     (fn

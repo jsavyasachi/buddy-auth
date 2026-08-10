@@ -13,7 +13,7 @@
 ;; limitations under the License.
 
 (ns buddy.auth.backends.session
-  "The session based authentication and authorization backend."
+  "The session-based authentication and authorization backend."
   (:require [buddy.auth.protocols :as proto]
             [buddy.auth.http :as http]
             [buddy.auth :refer [authenticated?]]))

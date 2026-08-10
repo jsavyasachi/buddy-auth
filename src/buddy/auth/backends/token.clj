@@ -13,14 +13,14 @@
 ;; limitations under the License.
 
 (ns buddy.auth.backends.token
-  "The token based authentication and authorization backend."
+  "The token-based authentication and authorization backend."
   (:require [buddy.auth.protocols :as proto]
             [buddy.auth.http :as http]
             [buddy.auth :refer [authenticated?]]
             [buddy.sign.jwt :as jwt]))
 
 (defn- handle-unauthorized-default
-  "A default response constructor for an unauthorized request."
+  "Create the default response for an unauthorized request."
   [request]
   (if (authenticated? request)
     {:status 403 :headers {} :body "Permission denied"}

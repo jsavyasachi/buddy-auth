@@ -45,14 +45,14 @@
   {:headers {"authorization" (str "Bearer " token)}})
 
 (deftest jwks-backend-test
-  (testing "Jwks backend authenticates a valid bearer token"
+  (testing "Authenticate a valid bearer token with the JWKS backend"
     (let [request (make-jwks-request (sign-token claims))
           handler (wrap-authentication identity jwks-backend)
           request' (handler request)]
       (is (authenticated? request'))
       (is (= (:identity request') claims))))
 
-  (testing "Jwks backend rejects a garbage bearer token with 401"
+  (testing "Return 401 for an invalid bearer token"
     (let [request (make-jwks-request "garbage")
           handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization jwks-backend)
@@ -61,14 +61,14 @@
       (is (= (:status response) 401))
       (is (= (:body response) "Unauthorized"))))
 
-  (testing "Jwks backend rejects a token signed by a key outside the source"
+  (testing "Reject a token signed by a key outside the source"
     (let [request (make-jwks-request (sign-token other-signing-key claims))
           handler (wrap-authentication identity jwks-backend)
           request' (handler request)]
       (is (not (authenticated? request')))
       (is (nil? (:identity request')))))
 
-  (testing "Jwks backend rejects claim mismatches from validation options"
+  (testing "Reject claim mismatches from validation options"
     (let [backend (backends/jwks {:source jwks-source
                                   :options {:iss "https://other-issuer.example"
                                             :algs #{:rs256}}})
@@ -78,7 +78,7 @@
       (is (not (authenticated? request')))
       (is (nil? (:identity request')))))
 
-  (testing "Jwks backend invokes on-error on verification failure"
+  (testing "Call on-error when verification fails"
     (let [p (promise)
           backend (backends/jwks {:source jwks-source
                                   :options {:algs #{:rs256}}
@@ -91,7 +91,7 @@
       (is (= response request))
       (is (= :parse-failure (:jose/error (deref p 1000 false))))))
 
-  (testing "Jwks backend transforms authenticated claims with authfn"
+  (testing "Transform authenticated claims with authfn"
     (let [request (make-jwks-request (sign-token claims))
           handler (wrap-authentication identity jwks-backend-with-authfn)
           request' (handler request)]
@@ -100,7 +100,7 @@
               :issuer "https://issuer.example"}
              (:identity request')))))
 
-  (testing "Jwks backend authorization yields 403 for authenticated unauthorized requests"
+  (testing "Return 403 for an authenticated unauthorized request"
     (let [request (make-jwks-request (sign-token claims))
           handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization jwks-backend)
@@ -110,18 +110,18 @@
       (is (= (:body response) "Permission denied")))))
 
 (deftest jwks-backend-construction-test
-  (testing "Jwks backend requires an expected JWT algorithm"
+  (testing "Require an expected JWT algorithm"
     (is (thrown-with-msg? IllegalArgumentException
                           #"Expected JWT algorithm is required"
                           (backends/jwks {:source jwks-source}))))
 
-  (testing "Jwks backend requires exactly one JWK source"
+  (testing "Require exactly one JWK source"
     (is (thrown? IllegalArgumentException (backends/jwks {})))
     (is (thrown? IllegalArgumentException
                  (backends/jwks {:source jwks-source
                                  :jwks-url "https://issuer.example/jwks"}))))
 
-  (testing "Jwks backend surfaces invalid JWKS URL errors at construction"
+  (testing "Report an invalid JWKS URL when the backend is created"
     (try
       (backends/jwks {:jwks-url "not a url"})
       (is false "Expected invalid JWKS URL")
