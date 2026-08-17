@@ -1,0 +1,5 @@
+;; `bytes->str` is a pre-existing test helper re-exported by buddy.core.codecs;
+;; the dependency does not supply clj-kondo metadata for that re-export.
+{:linters
+ {:unresolved-symbol
+  {:exclude [bytes->str]}}}

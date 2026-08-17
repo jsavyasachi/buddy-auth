@@ -7,6 +7,15 @@ on:
     branches: [main]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeLaGuardo/setup-clj-kondo@v1
+        with:
+          version: '2026.08.04'
+      - run: clj-kondo --lint src test --fail-level error
+
   test:
     runs-on: ubuntu-latest
     strategy:
