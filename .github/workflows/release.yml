@@ -84,13 +84,6 @@ jobs:
       - name: Build jar
         run: clojure -T:build jar
 
-      - name: Deploy to Clojars
-        if: github.ref_type == 'tag'
-        env:
-          CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
-          CLOJARS_PASSWORD: ${{ secrets.CLOJARS_PASSWORD }}
-        run: clojure -X:deploy
-
       - name: Extract release notes from CHANGELOG
         if: github.ref_type == 'tag'
         run: |
@@ -106,6 +99,13 @@ jobs:
             exit 1
           fi
           cat release-notes.md
+
+      - name: Deploy to Clojars
+        if: github.ref_type == 'tag'
+        env:
+          CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
+          CLOJARS_PASSWORD: ${{ secrets.CLOJARS_PASSWORD }}
+        run: clojure -X:deploy
 
       - name: Create GitHub Release
         if: github.ref_type == 'tag'
