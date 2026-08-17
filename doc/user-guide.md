@@ -18,13 +18,13 @@ _buddy-auth_ is a stable library. This is a maintenance fork of
 deps.edn:
 
 ```clojure
-net.clojars.savya/buddy-auth {:mvn/version "3.1.1"}
+net.clojars.savya/buddy-auth {:mvn/version "4.0.0"}
 ```
 
 Leiningen:
 
 ```clojure
-[net.clojars.savya/buddy-auth "3.1.1"]
+[net.clojars.savya/buddy-auth "4.0.0"]
 ```
 
 Use this package with *jdk>=8*.
@@ -314,8 +314,8 @@ Add it to your project to use this backend. Calling `backends/jwks` without it
 throws an error:
 
 ```clojure
-net.clojars.savya/jose-clj {:mvn/version "0.1.0"}   ; deps.edn
-[net.clojars.savya/jose-clj "0.1.0"]                ; Leiningen
+net.clojars.savya/jose-clj {:mvn/version "0.5.0"}   ; deps.edn
+[net.clojars.savya/jose-clj "0.5.0"]                ; Leiningen
 ```
 
 It requires JDK 11+ through jose-clj. By default, the backend reads a bearer
