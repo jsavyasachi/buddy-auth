@@ -80,6 +80,16 @@
       (is (not (authenticated? request')))
       (is (nil? (:identity request')))))
 
+  (testing "Propagate errors from a custom JWS authfn"
+    (let [request (make-jws-request jws-data jws-secret)
+          backend (backends/jws {:secret jws-secret
+                                 :authfn (fn [_]
+                                           (throw (ex-info "authfn failed" {})))})
+          handler (wrap-authentication identity backend)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"authfn failed"
+                            (handler request)))))
+
   (testing "Return nil for JWS authentication without a token"
     (let [request {}
           handler (wrap-authentication identity jws-backend)

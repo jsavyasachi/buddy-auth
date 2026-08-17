@@ -42,12 +42,14 @@
       (parse-header request token-name))
 
     (-authenticate [_ request data]
-      (try
-        (authfn (jwt/unsign data secret options))
-        (catch clojure.lang.ExceptionInfo e
-          (when (fn? on-error)
-            (on-error request e))
-          nil)))
+      (let [claims (try
+                     (jwt/unsign data secret options)
+                     (catch clojure.lang.ExceptionInfo e
+                       (when (fn? on-error)
+                         (on-error request e))
+                       nil))]
+        (when claims
+          (authfn claims))))
 
     proto/IAuthorization
     (-handle-unauthorized [_ request metadata]

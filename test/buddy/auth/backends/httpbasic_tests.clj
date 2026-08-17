@@ -23,7 +23,7 @@
   [request {:keys [username]}]
   (if (= username "foo")
     :valid
-    :invalid))
+    nil))
 
 (def backend
   (backends/http-basic
@@ -56,7 +56,7 @@
     (let [handler (wrap-authentication identity backend)
           request (make-request "test" "test")
           response (handler request)]
-      (is (= (:identity response) :invalid))))
+      (is (nil? (:identity response)))))
 
   (testing "Authenticate a request"
     (let [handler (wrap-authentication identity backend)
@@ -72,7 +72,8 @@
                       (wrap-authentication backend))
           request (make-request "user" "pass")
           response (handler request)]
-      (is (= (:identity response) :invalid))))
+      (is (= (:status response) 401))
+      (is (= (:body response) "Unauthorized"))))
 
   (testing "Use an HTTP Basic backend for authorization"
     (let [handler (-> (fn [req] (if (nil? (:identity req))
