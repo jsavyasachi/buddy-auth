@@ -37,7 +37,8 @@
     codox-theme-rdash/codox-theme-rdash {:mvn/version "0.1.2"}}}
 
   :build
-  {:extra-deps {io.github.clojure/tools.build {:git/tag "v0.10.14" :git/sha "9d08b2a1c8a81d8d147d71d13710a34d7d07d7c7"}}
+  {:extra-deps {io.github.clojure/tools.build {:git/tag "v0.10.14" :git/sha "9d08b2a1c8a81d8d147d71d13710a34d7d07d7c7"}
+                slipset/deps-deploy {:mvn/version "0.2.5"}}
    :ns-default build}
 
   ;; isolated so deps-deploy's maven stack can't clash with tools.build's

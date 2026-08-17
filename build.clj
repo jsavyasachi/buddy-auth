@@ -1,7 +1,8 @@
 (ns build
   (:refer-clojure :exclude [compile])
   (:require [clojure.string]
-            [clojure.tools.build.api :as b]))
+            [clojure.tools.build.api :as b]
+            [deps-deploy.deps-deploy :as dd]))
 
 (def lib 'net.clojars.savya/buddy-auth)
 (def version "4.0.1")
@@ -50,3 +51,9 @@
   (b/jar
    {:class-dir class-dir
     :jar-file jar-file}))
+
+(defn deploy [_]
+  (jar nil)
+  (dd/deploy {:installer :remote
+              :artifact jar-file
+              :pom-file (b/pom-path {:lib lib :class-dir class-dir})}))
