@@ -29,13 +29,13 @@ Ring-based web applications:
 deps.edn:
 
 ```clojure
-net.clojars.savya/buddy-auth {:mvn/version "4.0.1"}
+net.clojars.savya/buddy-auth {:mvn/version "4.0.2"}
 ```
 
 Leiningen:
 
 ```clojure
-[net.clojars.savya/buddy-auth "4.0.1"]
+[net.clojars.savya/buddy-auth "4.0.2"]
 ```
 
 ## Usage
