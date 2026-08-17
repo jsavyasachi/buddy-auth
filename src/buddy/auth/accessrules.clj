@@ -48,12 +48,12 @@
   (get-value [_] v)
 
   Object
-  (equals [self other]
+  (equals [_ other]
     (if (instance? RuleSuccess other)
       (= v (.-v ^RuleSuccess other))
       false))
 
-  (toString [self]
+  (toString [_]
     (with-out-str (print [v]))))
 
 (deftype RuleError [v]
@@ -62,12 +62,12 @@
   (get-value [_] v)
 
   Object
-  (equals [self other]
+  (equals [_ other]
     (if (instance? RuleError other)
       (= v (.-v ^RuleError other))
       false))
 
-  (toString [self]
+  (toString [_]
     (with-out-str (print [v]))))
 
 (alter-meta! #'->RuleSuccess assoc :private true)
@@ -232,7 +232,7 @@
                         (when (and (matches-request-method request request-method) match-params)
                           match-params))))
 
-                  :else (fn [request] {}))]
+                  :else (fn [_] {}))]
     (assoc accessrule
            :matcher matcher
            :handler handler)))
@@ -248,7 +248,7 @@
   "Iterate over access rules and match each rule in order.
   Return the first matching access rule or nil."
   [accessrules request]
-  (reduce (fn [acc accessrule]
+  (reduce (fn [_ accessrule]
             (let [matcher (:matcher accessrule)
                   match-result (matcher request)]
               (when match-result

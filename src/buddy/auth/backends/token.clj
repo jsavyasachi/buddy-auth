@@ -45,10 +45,9 @@
       (try
         (authfn (jwt/unsign data secret options))
         (catch clojure.lang.ExceptionInfo e
-          (let [data (ex-data e)]
-            (when (fn? on-error)
-              (on-error request e))
-            nil))))
+          (when (fn? on-error)
+            (on-error request e))
+          nil)))
 
     proto/IAuthorization
     (-handle-unauthorized [_ request metadata]

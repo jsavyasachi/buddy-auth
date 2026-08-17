@@ -24,7 +24,7 @@
     proto/IAuthentication
     (-parse [_ request]
       (:identity (:session request)))
-    (-authenticate [_ request data]
+    (-authenticate [_ _ data]
       (authfn data))
 
     proto/IAuthorization

@@ -13,8 +13,7 @@
 ;; limitations under the License.
 
 (ns buddy.auth
-  "Authorization and authentication primitives for Ring-based applications."
-  (:require [buddy.auth.protocols :as proto]))
+  "Authorization and authentication primitives for Ring-based applications.")
 
 (defn authenticated?
   "Return `true` if the `request` is authenticated.

@@ -13,10 +13,7 @@
 ;; limitations under the License.
 
 (ns buddy.auth.middleware
-  (:require [buddy.auth.protocols :as proto]
-            [buddy.auth.accessrules :as accessrules]
-            [buddy.auth.http :as http]
-            [buddy.auth :refer [authenticated? throw-unauthorized]]))
+  (:require [buddy.auth.protocols :as proto]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Authentication
