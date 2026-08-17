@@ -121,7 +121,9 @@ jobs:
         env:
           CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
           CLOJARS_PASSWORD: ${{ secrets.CLOJARS_PASSWORD }}
-        run: clojure -X:deploy
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          clojure -X:deploy :artifact "\"target/buddy-auth-${VERSION}.jar\""
 
       - name: Create GitHub Release
         if: github.ref_type == 'tag'
