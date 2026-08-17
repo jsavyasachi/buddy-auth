@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.0.1] - 2026-08-17
+
+### Fixed
+
+- `jws-backend` no longer swallows exceptions thrown by the user's
+  `authfn`. Only the `jwt/unsign` call is guarded, so a malformed or expired
+  token still yields an unauthenticated request, but a bug in the identity
+  transformation propagates instead of silently proceeding unauthenticated.
+
 ## [4.0.0] - 2026-07-21
 
 ### Changed
