@@ -3,12 +3,16 @@
             [buddy.auth.http :as http]
             [buddy.auth.accessrules :as acr :refer (success error restrict wrap-access-rules)]))
 
+(set! *warn-on-reflection* true)
+
 (defn ok [v] (acr/success v))
 (defn fail [v]
   (acr/error (if (and (map? v) (:msg v)) (:msg v) v)))
 
 (defn ok2 [v] true)
 (defn fail2 [v] false)
+
+(declare test-handler)
 
 (deftest compile-rule-handler
   (testing "Compile a function rule handler"
@@ -51,6 +55,66 @@
           result (rule 1)]
       (is (= (error 1) result))))
 )
+
+(deftest named-policies-test
+  (testing "A named policy can be reused by keyword"
+    (let [compiled (#'acr/compile-access-rules
+                    [{:uri "/one" :handler :member}
+                     {:uri "/two" :handler :member}]
+                    {:member ok})]
+      (is (= (success :request) ((:handler (first compiled)) :request)))
+      (is (= (success :request) ((:handler (second compiled)) :request)))))
+
+  (testing "An unknown named policy fails during compilation"
+    (is (thrown-with-msg? IllegalArgumentException #"Unknown access rule policy"
+          (#'acr/compile-access-rules
+           [{:uri "/one" :handler :missing}]
+           {:member ok})))
+    (is (thrown-with-msg? IllegalArgumentException #"Unknown access rule policy"
+          (#'acr/compile-access-rules
+           [{:uri "/one" :handler {:and [:missing ok]}}]
+           {:member ok})))))
+
+(deftest composed-request-matchers-test
+  (let [handler (wrap-access-rules test-handler
+                                   {:rules [{:match {:and [{:uri "/admin/:id"}
+                                                           {:host "admin.example.com"}
+                                                           {:header {"x-role" "admin"}}
+                                                           {:query-param {"tenant" "acme"}}]}
+                                                    :handler ok}]
+                                    :default-deny true})]
+    (testing "host, header, query parameter, and path can be composed"
+      (let [request {:uri "/admin/42"
+                     :server-name "admin.example.com"
+                     :headers {"x-role" "admin"}
+                     :query-params {"tenant" "acme"}}]
+        (is (= request (:body (handler request))))))
+    (testing "a composed matcher rejects a non-matching request"
+      (is (thrown? clojure.lang.ExceptionInfo
+                   (handler {:uri "/admin/42"
+                             :server-name "other.example.com"
+                             :headers {"x-role" "admin"}
+                             :query-params {"tenant" "acme"}})))))
+    (testing "not composes with existing matcher expressions"
+      (let [not-handler (wrap-access-rules test-handler
+                                           {:rules [{:match {:not {:host "blocked.example.com"}}
+                                                     :handler ok}]
+                                            :default-deny true})]
+        (is (= {:host "allowed.example.com"}
+               (:body (not-handler {:host "allowed.example.com"}))))
+        (is (thrown? clojure.lang.ExceptionInfo
+                     (not-handler {:host "blocked.example.com"}))))))
+
+(deftest default-deny-test
+  (testing "default-deny explicitly rejects unmatched requests"
+    (let [handler (wrap-access-rules test-handler
+                                     {:rules [{:uri "/known" :handler ok}]
+                                      :default-deny true})]
+      (is (thrown? clojure.lang.ExceptionInfo (handler {:uri "/unknown"})))))
+  (testing "the historical default still allows unmatched requests"
+    (let [handler (wrap-access-rules test-handler
+                                     {:rules [{:uri "/known" :handler ok}]})]
+      (is (= {:uri "/unknown"} (:body (handler {:uri "/unknown"})))))))
 
 (defn test-handler
   [req]

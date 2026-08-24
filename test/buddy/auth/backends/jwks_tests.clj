@@ -3,9 +3,18 @@
             [buddy.auth :refer [authenticated? throw-unauthorized]]
             [buddy.auth.backends :as backends]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
+            [buddy.auth.backends.jwks :as jwks]
+            [buddy.core.codecs :as codecs]
+            [buddy.core.codecs.base64 :as b64]
+            [clojure.string :as str]
+            [clojure.test.check :as tc]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]
             [jose.jwk :as jose-jwk]
             [jose.jwks :as jose-jwks]
             [jose.jwt :as jose-jwt]))
+
+(set! *warn-on-reflection* true)
 
 (def claims {:iss "https://issuer.example"
              :aud ["api://buddy-auth"]
@@ -18,6 +27,9 @@
 (def other-signing-key (jose-jwk/generate :rsa {:kid "jwks-other-key"
                                                 :use :sig
                                                 :alg :rs256}))
+(def symmetric-signing-key (jose-jwk/generate :oct {:kid "jwks-symmetric-key"
+                                                   :use :sig
+                                                   :alg :hs256}))
 (def jwks-source (jose-jwks/local-source [(jose-jwk/public-jwk signing-key)]))
 
 (def jwks-backend
@@ -39,6 +51,19 @@
    (sign-token signing-key claims))
   ([key claims]
    (jose-jwt/sign key claims {:alg :rs256})))
+
+(defn sign-symmetric-token
+  [claims]
+  (jose-jwt/sign symmetric-signing-key claims {:alg :hs256}))
+
+(defn replace-jwt-algorithm
+  [token algorithm]
+  (let [header (-> (b64/encode (str "{\"alg\":\"" (name algorithm) "\",\"typ\":\"JWT\"}"))
+                   codecs/bytes->str
+                   (str/replace "+" "-")
+                   (str/replace "/" "_")
+                   (str/replace "=" ""))]
+    (str header "." (second (str/split token #"\.")) "." (nth (str/split token #"\.") 2))))
 
 (defn make-jwks-request
   [token]
@@ -100,6 +125,17 @@
               :issuer "https://issuer.example"}
              (:identity request')))))
 
+  (testing "Propagate errors from a custom JWKS authfn"
+    (let [request (make-jwks-request (sign-token claims))
+          backend (backends/jwks {:source jwks-source
+                                  :options {:algs #{:rs256}}
+                                  :authfn (fn [_]
+                                            (throw (ex-info "JWKS authfn failed" {})))})
+          handler (wrap-authentication identity backend)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"JWKS authfn failed"
+                            (handler request)))))
+
   (testing "Return 403 for an authenticated unauthorized request"
     (let [request (make-jwks-request (sign-token claims))
           handler (-> (fn [_] (throw-unauthorized))
@@ -127,3 +163,83 @@
       (is false "Expected invalid JWKS URL")
       (catch clojure.lang.ExceptionInfo e
         (is (= :invalid-url (:jose/error (ex-data e))))))))
+
+(deftest oidc-provider-test
+  (let [issuer "https://issuer.example"
+        discover (some-> (ns-resolve 'buddy.auth.backends 'discover-jwks-url) deref)]
+    (if discover
+      (is (= "https://issuer.example/keys"
+             (discover issuer (fn [_] {"jwks_uri" "https://issuer.example/keys"}))))
+      (is false "OIDC discovery helper is missing"))
+    (if-let [oidc (some-> (ns-resolve 'buddy.auth.backends 'oidc) deref)]
+      (let [valid-claims (assoc claims :aud ["api://buddy-auth" "other"]
+                                :azp "api://buddy-auth"
+                                :nonce "nonce-1")
+            backend (oidc {:issuer issuer
+                           :source jwks-source
+                           :options {:algs #{:rs256}}
+                           :audience "api://buddy-auth"
+                           :nonce "nonce-1"
+                           :discovery-fn (fn [_] "https://issuer.example/keys")})
+            request (make-jwks-request (sign-token valid-claims))
+            wrong-azp (make-jwks-request (sign-token (assoc valid-claims :azp "other")))
+            wrong-nonce (make-jwks-request (sign-token (assoc valid-claims :nonce "other")))]
+        (is (authenticated? ((wrap-authentication identity backend) request)))
+        (is (not (authenticated? ((wrap-authentication identity backend) wrong-azp))))
+        (is (not (authenticated? ((wrap-authentication identity backend) wrong-nonce)))))
+      (is false "OIDC backend helper is missing"))))
+
+(deftest oidc-construction-discovers-jwks-test
+  (let [calls (atom [])]
+    (is (some? (backends/oidc {:issuer "https://issuer.example"
+                               :options {:algs #{:rs256}}
+                               :discovery-fn (fn [issuer]
+                                               (swap! calls conj issuer)
+                                               "https://issuer.example/keys")})))
+    (is (= ["https://issuer.example"] @calls))))
+
+(deftest oidc-errors-are-not-mislabeled-test
+  (with-redefs [jwks/discover-jwks-url
+                (fn [_]
+                  (throw (ex-info "discovery failed" {:error :discovery-failed})))]
+    (try
+      (backends/discover-jwks-url "https://issuer.example")
+      (is false "Expected discovery failure")
+      (catch clojure.lang.ExceptionInfo e
+        (is (= :discovery-failed (:error (ex-data e))))
+        (is (nil? (:missing-dependency (ex-data e))))))))
+
+(deftest jwks-bearer-challenge-test
+  (let [backend (backends/jwks {:source jwks-source
+                                :options {:algs #{:rs256}}
+                                :bearer-challenge true})
+        request (make-jwks-request "garbage")
+        handler (-> (fn [_] (throw-unauthorized))
+                    (wrap-authorization backend)
+                    (wrap-authentication backend))
+        response (handler request)]
+    (is (= 401 (:status response)))
+    (is (= "Bearer error=\"invalid_token\", error_description=\"The access token is invalid\""
+           (get-in response [:headers "WWW-Authenticate"]))))
+  (testing "Bearer parsing is case-insensitive"
+    (let [request (assoc-in (make-jwks-request (sign-token claims))
+                            [:headers "authorization"]
+                            (str "bEaReR " (sign-token claims)))
+          request' ((wrap-authentication identity jwks-backend) request)]
+      (is (authenticated? request')))))
+
+(def unexpected-jws-algorithm-gen
+  (gen/elements [:none :hs256 :es256]))
+
+(deftest jwks-rejects-unexpected-signing-algorithms
+  (let [result (tc/quick-check
+                30
+                (prop/for-all [algorithm unexpected-jws-algorithm-gen]
+                  (let [token (sign-symmetric-token claims)
+                        token (replace-jwt-algorithm token algorithm)
+                        request (make-jwks-request token)
+                        handler (wrap-authentication identity jwks-backend)
+                        request' (handler request)]
+                    (and (not (authenticated? request'))
+                         (nil? (:identity request'))))))]
+    (is (= true (:pass? result)) (pr-str result))))

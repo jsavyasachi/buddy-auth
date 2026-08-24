@@ -15,3 +15,6 @@ pom.xml.asc
 *.iml
 .cpcache
 release-notes.md
+.worktrees/
+.codex-runs/
+.clj-kondo/.cache/

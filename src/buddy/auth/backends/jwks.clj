@@ -14,11 +14,17 @@
 
 (ns buddy.auth.backends.jwks
   "The JWKS authentication and authorization backend."
-  (:require [buddy.auth.protocols :as proto]
+  (:require [clojure.string :as str]
+            [buddy.auth.protocols :as proto]
             [buddy.auth.http :as http]
             [buddy.auth :refer [authenticated?]]
+            [buddy.auth.backends.verification :as verification]
             [jose.jwt :as jose-jwt]
-            [jose.jwks :as jose-jwks]))
+            [jose.jwks :as jose-jwks])
+  (:import (com.nimbusds.jose.util JSONObjectUtils)
+           (java.net URI)
+           (java.net.http HttpClient HttpRequest HttpResponse HttpResponse$BodyHandlers)
+           (java.time Duration)))
 
 (set! *warn-on-reflection* true)
 
@@ -29,11 +35,26 @@
     {:status 403 :headers {} :body "Permission denied"}
     {:status 401 :headers {} :body "Unauthorized"}))
 
+(defn- bearer-challenge
+  [request]
+  (if (authenticated? request)
+    "Bearer error=\"insufficient_scope\", error_description=\"The request requires higher privileges than provided by the access token\""
+    "Bearer error=\"invalid_token\", error_description=\"The access token is invalid\""))
+
+(defn- handle-unauthorized
+  [request bearer-challenge?]
+  (let [response (handle-unauthorized-default request)]
+    (if bearer-challenge?
+      (assoc-in response [:headers "WWW-Authenticate"] (bearer-challenge request))
+      response)))
+
 (defn- parse-header
   [request token-name]
-  (some->> (http/-get-header request "authorization")
-           (re-find (re-pattern (str "^" token-name " (.+)$")))
-           (second)))
+  (let [case-insensitive? (= "bearer" (str/lower-case token-name))
+        prefix (if case-insensitive? "(?i)" "")]
+    (some->> (http/-get-header request "authorization")
+             (re-find (re-pattern (str prefix "^" (java.util.regex.Pattern/quote token-name) " (.+)$")))
+             (second))))
 
 (defn- jwks-source
   [{:keys [source jwks-url jwks-opts]}]
@@ -50,12 +71,87 @@
     :else
     (throw (IllegalArgumentException. "Expected exactly one of :source or :jwks-url"))))
 
+(defn- http-get-json
+  [url]
+  (let [request (-> (HttpRequest/newBuilder (URI. url))
+                    (.timeout (Duration/ofSeconds 10))
+                    (.header "Accept" "application/json")
+                    (.GET)
+                    (.build))
+        ^HttpResponse response (.send (HttpClient/newHttpClient)
+                                       request
+                                       (HttpResponse$BodyHandlers/ofString))]
+    (when-not (= 200 (.statusCode response))
+      (throw (ex-info "OIDC discovery request failed"
+                      {:url url :status (.statusCode response)})))
+    (JSONObjectUtils/parse ^String (.body response))))
+
+(defn discover-jwks-url
+  "Fetch the OIDC discovery document and return its `jwks_uri`.
+
+  The two-argument form accepts a fetch function for callers that provide
+  their own HTTP transport or for isolated testing."
+  ([issuer]
+   (discover-jwks-url issuer http-get-json))
+  ([issuer fetch-json]
+   (let [issuer (str issuer)
+         discovery-url (str (if (.endsWith ^String issuer "/")
+                              (subs issuer 0 (dec (count issuer)))
+                              issuer)
+                            "/.well-known/openid-configuration")
+         document (fetch-json discovery-url)
+         jwks-url (get document "jwks_uri")]
+     (if (string? jwks-url)
+       jwks-url
+       (throw (ex-info "OIDC discovery document has no jwks_uri"
+                       {:url discovery-url}))))))
+
+(defn- claim-value
+  [claims key]
+  (or (get claims key) (get claims (name key))))
+
+(defn- oidc-verifier
+  [audience nonce verifier]
+  (fn [claims context]
+    (and (or (nil? verifier) (verifier claims context))
+         (or (nil? nonce)
+             (= nonce (claim-value claims :nonce)))
+         (let [aud (claim-value claims :aud)
+               aud (if (sequential? aud) aud [aud])]
+           (or (<= (count aud) 1)
+               (= audience (claim-value claims :azp)))))))
+
+(declare jwks-backend)
+
+(defn oidc-backend
+  "Create a JWKS backend from an OIDC issuer.
+
+  Discovery is performed when no `:source` or `:jwks-url` is supplied. The
+  expected audience is configured with `:audience` (or `:options {:aud ...}`),
+  and an expected nonce with `:nonce`."
+  [{:keys [issuer audience nonce discovery-fn options]
+    :as opts
+    :or {options {}}}]
+  (when-not issuer
+    (throw (IllegalArgumentException. "Expected OIDC :issuer")))
+  (let [audience (or audience (:aud options))
+        nonce (if (contains? opts :nonce) nonce (:nonce options))
+        verifier (oidc-verifier audience nonce (:verifier options))
+        options (cond-> (assoc (dissoc options :nonce :verifier) :iss issuer)
+                  (and audience (not (contains? options :aud))) (assoc :aud audience))
+        jwks-url (or (:jwks-url opts)
+                     (when-not (:source opts)
+                       ((or discovery-fn discover-jwks-url) issuer)))]
+    (jwks-backend (assoc opts
+                         :jwks-url jwks-url
+                         :options (assoc options :verifier verifier)))))
+
 (defn jwks-backend
   "Create a JWKS authentication backend.
 
   :options must contain :algs or :alg to declare the expected JWT algorithm.
   For example, pass :options {:algs #{:rs256}}."
-  [{:keys [authfn unauthorized-handler options token-name on-error]
+  [{:keys [authfn unauthorized-handler options token-name on-error bearer-challenge]
     :as opts
     :or {authfn identity options {} token-name "Bearer"}}]
   {:pre [(ifn? authfn)]}
@@ -69,15 +165,14 @@
         (parse-header request token-name))
 
       (-authenticate [_ request data]
-        (try
-          (authfn (jose-jwt/verify-with-jwks source data options))
-          (catch clojure.lang.ExceptionInfo e
-            (when (fn? on-error)
-              (on-error request e))
-            nil)))
+        (let [claims (verification/verify
+                      request on-error
+                      #(jose-jwt/verify-with-jwks source data options))]
+          (when claims
+            (authfn claims))))
 
       proto/IAuthorization
       (-handle-unauthorized [_ request metadata]
         (if unauthorized-handler
           (unauthorized-handler request metadata)
-          (handle-unauthorized-default request))))))
+          (handle-unauthorized request bearer-challenge))))))
