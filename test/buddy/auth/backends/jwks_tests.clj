@@ -3,9 +3,13 @@
             [buddy.auth :refer [authenticated? throw-unauthorized]]
             [buddy.auth.backends :as backends]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
+            [buddy.auth.backends.jwks :as jwks]
             [jose.jwk :as jose-jwk]
             [jose.jwks :as jose-jwks]
-            [jose.jwt :as jose-jwt]))
+            [jose.jwt :as jose-jwt])
+  )
+
+(set! *warn-on-reflection* true)
 
 (def claims {:iss "https://issuer.example"
              :aud ["api://buddy-auth"]
@@ -138,3 +142,48 @@
       (is false "Expected invalid JWKS URL")
       (catch clojure.lang.ExceptionInfo e
         (is (= :invalid-url (:jose/error (ex-data e))))))))
+
+(deftest oidc-provider-test
+  (let [issuer "https://issuer.example"
+        discover (some-> (ns-resolve 'buddy.auth.backends 'discover-jwks-url) deref)]
+    (if discover
+      (is (= "https://issuer.example/keys"
+             (discover issuer (fn [_] {"jwks_uri" "https://issuer.example/keys"}))))
+      (is false "OIDC discovery helper is missing"))
+    (if-let [oidc (some-> (ns-resolve 'buddy.auth.backends 'oidc) deref)]
+      (let [valid-claims (assoc claims :aud ["api://buddy-auth" "other"]
+                                :azp "api://buddy-auth"
+                                :nonce "nonce-1")
+            backend (oidc {:issuer issuer
+                           :source jwks-source
+                           :options {:algs #{:rs256}}
+                           :audience "api://buddy-auth"
+            :nonce "nonce-1"
+                           :discovery-fn (fn [_] "https://issuer.example/keys")})
+            request (make-jwks-request (sign-token valid-claims))
+            wrong-azp (make-jwks-request (sign-token (assoc valid-claims :azp "other")))
+            wrong-nonce (make-jwks-request (sign-token (assoc valid-claims :nonce "other")))]
+        (is (authenticated? ((wrap-authentication identity backend) request)))
+        (is (not (authenticated? ((wrap-authentication identity backend) wrong-azp))))
+        (is (not (authenticated? ((wrap-authentication identity backend) wrong-nonce)))))
+      (is false "OIDC backend helper is missing"))))
+
+(deftest oidc-construction-discovers-jwks-test
+  (let [calls (atom [])]
+    (is (some? (backends/oidc {:issuer "https://issuer.example"
+                               :options {:algs #{:rs256}}
+                               :discovery-fn (fn [issuer]
+                                               (swap! calls conj issuer)
+                                               "https://issuer.example/keys")})))
+    (is (= ["https://issuer.example"] @calls))))
+
+(deftest oidc-errors-are-not-mislabeled-test
+  (with-redefs [jwks/discover-jwks-url
+                (fn [_]
+                  (throw (ex-info "discovery failed" {:error :discovery-failed})))]
+    (try
+      (backends/discover-jwks-url "https://issuer.example")
+      (is false "Expected discovery failure")
+      (catch clojure.lang.ExceptionInfo e
+        (is (= :discovery-failed (:error (ex-data e))))
+        (is (nil? (:missing-dependency (ex-data e))))))))

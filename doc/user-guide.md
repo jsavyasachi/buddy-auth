@@ -355,6 +355,26 @@ Options:
   `:required`).
 - `:token-name` - the Authorization scheme, `"Bearer"` by default.
 - `:authfn` - transforms validated claims into the request identity.
+
+### OIDC provider discovery
+
+For providers that publish OpenID Connect discovery metadata, use
+`backends/oidc` with the issuer URL. It fetches the issuer's
+`/.well-known/openid-configuration`, reads `jwks_uri`, and then uses the JWKS
+backend for signature and claim validation:
+
+```clojure
+(backends/oidc {:issuer "https://accounts.google.com"
+                :audience "your-client-id"
+                :nonce expected-nonce
+                :options {:algs #{:rs256}}})
+```
+
+The configured issuer and audience are validated as standard JWT claims. When
+the token contains multiple audiences, `azp` must match the configured
+audience. A configured nonce must also match the token's `nonce` claim.
+`backends/discover-jwks-url` is available when only the discovered JWKS URL is
+needed. OIDC discovery uses the JDK HTTP client and does not add a dependency.
 - `:on-error` - `(fn [request exception] ...)` runs when validation fails.
 
 
