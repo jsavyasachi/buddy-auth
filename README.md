@@ -77,6 +77,9 @@ and collections match when any value matches.
 
 Full guide: [cljdoc](https://cljdoc.org/d/net.clojars.savya/buddy-auth) and `doc/user-guide.md`.
 
+Modern integration examples for Ring 1.12+, Reitit route data, JSON API error
+responses, and Clojure CLI are in the [user guide](doc/user-guide.md#modern-ring-and-reitit-integration).
+
 ## Maintenance fork
 
 This is a maintenance fork of [funcool/buddy-auth](https://github.com/funcool/buddy-auth).
