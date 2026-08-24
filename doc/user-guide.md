@@ -30,6 +30,189 @@ Leiningen:
 Use this package with *jdk>=8*.
 
 
+## Modern Ring and Reitit Integration
+
+The examples in this section use the current public functions in
+_buddy-auth_: `backends/session`, `backends/token`, `wrap-authentication`,
+`wrap-authorization`, `authenticated?`, and `throw-unauthorized`. Ring,
+Reitit, and JSON middleware are application dependencies; they are not bundled
+with _buddy-auth_. Add the coordinates that your application needs to its own
+`deps.edn` or `project.clj`.
+
+
+### Clojure CLI Quickstart
+
+For a small Ring application, a `deps.edn` can start with these application-owned
+coordinates. The `ring/ring-core` coordinate supplies Ring middleware such as
+`wrap-session`; the _buddy-auth_ coordinate supplies the authentication
+middleware and backend.
+
+```clojure
+{:deps
+ {org.clojure/clojure {:mvn/version "1.12.1"}
+  net.clojars.savya/buddy-auth {:mvn/version "4.0.2"}
+  ring/ring-core {:mvn/version "1.12.2"}}}
+```
+
+Save this as `src/example/core.clj`:
+
+```clojure
+(ns example.core
+  (:require [buddy.auth :refer [authenticated?]]
+            [buddy.auth.backends :as backends]
+            [buddy.auth.middleware :refer [wrap-authentication
+                                            wrap-authorization]]
+            [ring.middleware.session :refer [wrap-session]]))
+
+(def backend (backends/session))
+
+(defn handler [request]
+  (if (authenticated? request)
+    {:status 200 :headers {} :body (str "hello " (:identity request))}
+    {:status 200 :headers {} :body "hello anonymous"}))
+
+;; Request flow: wrap-session -> wrap-authentication ->
+;; wrap-authorization -> handler.
+(def app
+  (-> handler
+      (wrap-authorization backend)
+      (wrap-authentication backend)
+      wrap-session))
+```
+
+Evaluate the app with the Clojure CLI:
+
+```bash
+clojure -Spath
+clojure -M -e "(require '[example.core :as app]) (prn (app/app {:request-method :get :uri \"/\"}))"
+```
+
+The session backend reads `:identity` from `:session`, so `wrap-session` must
+be outside (applied after) `wrap-authentication` in the `->` form. This is the
+same ordering used by Ring 1.12 and later. A real server adapter and a session
+store are separate application choices.
+
+
+### Ring 1.12+ Middleware Ordering
+
+Ring middleware is applied from the inside of the `->` form outward, but runs
+from the outside inward on a request. Put session middleware outside
+_buddy-auth_ authentication whenever the selected backend reads the Ring
+session. Put authorization inside authentication so the handler sees the
+`:identity` established by authentication:
+
+```clojure
+(def app
+  (-> routes-or-handler
+      (wrap-authorization backend)
+      (wrap-authentication backend)
+      (wrap-session session-options)))
+```
+
+For a token backend, session middleware is not required unless another part of
+the application uses sessions:
+
+```clojure
+(def backend (backends/token {:authfn (fn [_request token]
+                                        (when (= token "demo-token") :demo-user))}))
+
+(def app
+  (-> handler
+      (wrap-authorization backend)
+      (wrap-authentication backend)))
+```
+
+The authentication middleware accepts one or more backends. Authorization
+accepts one backend (or another two-argument unauthorized handler), so keep the
+calls separate when both are needed.
+
+
+### Reitit Route-Data Middleware
+
+Reitit can apply ordinary Ring middleware from route data. Use its
+`:middleware` key and pass _buddy-auth_ middleware as `[middleware args...]`
+vectors; do not compose routes with Compojure-style `wrap-*` calls.
+
+```clojure
+(ns example.reitit
+  (:require [buddy.auth :refer [authenticated? throw-unauthorized]]
+            [buddy.auth.backends :as backends]
+            [buddy.auth.middleware :refer [wrap-authentication
+                                            wrap-authorization]]
+            [reitit.ring :as ring]))
+
+(def backend
+  (backends/token {:authfn (fn [_request token]
+                             (when (= token "demo-token") :demo-user))}))
+
+(defn private-handler [request]
+  (when-not (authenticated? request)
+    (throw-unauthorized))
+  {:status 200 :headers {} :body "private"})
+
+(def router
+  (ring/router
+   ["/"
+    ["public" {:get (fn [_] {:status 200 :headers {} :body "public"})}]
+    ["private"
+     {:middleware [[wrap-authentication backend]
+                  [wrap-authorization backend]]
+      :get private-handler}]]))
+
+(def app (ring/ring-handler router))
+```
+
+Reitit applies the route-data middleware before the route handler. For a
+session backend, add `[wrap-session]` to the appropriate route-data
+`:middleware` vector and place `[wrap-authentication backend]` after it; the
+session middleware must run first so the backend can read `:session`. Reitit
+itself and its Ring adapter are application dependencies; a typical CLI
+coordinate is `metosin/reitit-ring`, for example
+`{:mvn/version "0.11.0-rc1"}`. Choose the version used by your application.
+
+
+### JSON API Unauthorized and Forbidden Responses
+
+The built-in backends distinguish unauthenticated requests (`401`) from
+authenticated requests denied by authorization (`403`). Supply an
+`:unauthorized-handler` to return JSON-shaped data, and use a JSON response
+middleware in the application to encode the response body:
+
+```clojure
+(require '[buddy.auth :refer [authenticated?]]
+         '[buddy.auth.backends :as backends]
+         '[buddy.auth.middleware :refer [wrap-authentication
+                                         wrap-authorization]]
+         '[ring.middleware.json :refer [wrap-json-response]])
+
+(defn api-error
+  [request _metadata]
+  (if (authenticated? request)
+    {:status 403 :headers {} :body {:error "forbidden"
+                                    :message "Permission denied"}}
+    {:status 401 :headers {} :body {:error "unauthorized"
+                                    :message "Authentication required"}}))
+
+(def backend
+  (backends/token {:authfn (fn [_request token]
+                             (when (= token "demo-token") :demo-user))
+                   :unauthorized-handler api-error}))
+
+(def app
+  (-> handler
+      (wrap-authorization backend)
+      (wrap-authentication backend)
+      wrap-json-response))
+```
+
+`ring.middleware.json/wrap-json-response` is shown only as an example of the
+JSON middleware style; it is not a _buddy-auth_ dependency. If you use it, add
+`ring/ring-json` (for example `{:mvn/version "0.5.1"}`) to your own project.
+Alternatively, encode the response maps with the JSON library already used by
+your application. Keep `wrap-json-response` outside the authentication and
+authorization middleware so their error responses are encoded too.
+
+
 ## Authentication
 
 ### Introduction
@@ -873,10 +1056,10 @@ git clone https://github.com/funcool/buddy-auth
 
 ### Run tests
 
-Run the tests:
+Run the tests with the repository's Cognitect test-runner alias:
 
 ```bash
-lein test
+clojure -X:test
 ```
 
 
