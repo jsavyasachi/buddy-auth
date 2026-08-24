@@ -17,7 +17,7 @@ Authentication and authorization for [Ring](https://github.com/ring-clojure/ring
 `buddy-auth` provides pluggable **authentication** and **authorization** for Ring and
 Ring-based web applications:
 
-- Authentication backends: HTTP Basic, session, and token. Token covers signed
+- Authentication backends: API key, HTTP Basic, session, and token. Token covers signed
   JWT and JWE through [buddy-sign](https://github.com/funcool/buddy-sign), and
   JWKS/OIDC token validation through
   [jose-clj](https://github.com/jsavyasachi/jose-clj).
