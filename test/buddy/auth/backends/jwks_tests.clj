@@ -100,6 +100,17 @@
               :issuer "https://issuer.example"}
              (:identity request')))))
 
+  (testing "Propagate errors from a custom JWKS authfn"
+    (let [request (make-jwks-request (sign-token claims))
+          backend (backends/jwks {:source jwks-source
+                                  :options {:algs #{:rs256}}
+                                  :authfn (fn [_]
+                                            (throw (ex-info "JWKS authfn failed" {})))})
+          handler (wrap-authentication identity backend)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"JWKS authfn failed"
+                            (handler request)))))
+
   (testing "Return 403 for an authenticated unauthorized request"
     (let [request (make-jwks-request (sign-token claims))
           handler (-> (fn [_] (throw-unauthorized))

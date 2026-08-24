@@ -240,7 +240,17 @@
           handler (wrap-authentication identity jwe-backend-with-authfn)
           request' (handler request)]
       (is (authenticated? request'))
-      (is (= ::jwe-authorized (:identity request'))))))
+      (is (= ::jwe-authorized (:identity request')))))
+
+  (testing "Propagate errors from a custom JWE authfn"
+    (let [request (make-jwe-request jwe-data jwe-secret)
+          backend (backends/jwe {:secret jwe-secret
+                                 :authfn (fn [_]
+                                           (throw (ex-info "JWE authfn failed" {})))})
+          handler (wrap-authentication identity backend)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"JWE authfn failed"
+                            (handler request))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Tests: Token
