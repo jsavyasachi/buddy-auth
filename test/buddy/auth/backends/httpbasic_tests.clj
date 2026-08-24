@@ -6,7 +6,13 @@
             [buddy.auth.http :as http]
             [buddy.auth.backends :as backends]
             [buddy.auth.backends.httpbasic :as httpbasic]
-            [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]))
+            [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
+            [clojure.string :as str]
+            [clojure.test.check :as tc]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]))
+
+(set! *warn-on-reflection* true)
 
 (defn make-header
   [username password]
@@ -44,6 +50,58 @@
       (is (not (nil? parsed)))
       (is (= (:password parsed) "bar:baz"))
       (is (= (:username parsed) "foo")))))
+
+(defn parse-header
+  [header]
+  ((deref #'httpbasic/parse-header) {:headers {"authorization" header}}))
+
+(def malformed-header-gen
+  (gen/one-of
+   [(gen/elements [nil "" " " "\t\n"])
+    (gen/fmap #(str % " payload")
+             (gen/such-that seq gen/string-alphanumeric))
+    (gen/elements ["Basic" "Basic " "Basic !!!" "Basic ==" "Basic a" "Basic a==="])]))
+
+(deftest malformed-http-basic-headers-are-clean
+  (let [result (tc/quick-check
+                100
+                (prop/for-all [header malformed-header-gen]
+                  (let [parsed (try
+                                 (parse-header header)
+                                 (catch IllegalArgumentException _ ::invalid-base64)
+                                 (catch Throwable error error))]
+                    (and (not (instance? Throwable parsed))
+                         (if (and (string? header)
+                                  (str/starts-with? header "Basic ")
+                                  (not= parsed ::invalid-base64))
+                           (or (nil? parsed)
+                               (= {:username "" :password nil} parsed))
+                           true)))))]
+    (is (= true (:pass? result)) (pr-str result))))
+
+(def basic-char-gen
+  (gen/elements [\a \Z \0 \9 \space \: \. \* \+ \? \( \) \[ \] \{ \} \u00e9 \u65e5 \u0436]))
+
+(def basic-string-gen
+  (gen/fmap #(apply str %)
+            (gen/vector basic-char-gen 0 24)))
+
+(defn expected-basic-credentials
+  [username password]
+  (let [separator (.indexOf ^String username ":")]
+    (if (neg? separator)
+      {:username username :password password}
+      {:username (subs username 0 separator)
+       :password (str (subs username (inc separator)) ":" password)})))
+
+(deftest unusual-basic-credentials-follow-basic-format
+  (let [result (tc/quick-check
+                100
+                (prop/for-all [username basic-string-gen
+                               password basic-string-gen]
+                  (= (expected-basic-credentials username password)
+                     (parse-header (make-header username password)))))]
+    (is (= true (:pass? result)) (pr-str result))))
 
 (deftest httpbasic-auth-backend
   (testing "Authenticate an anonymous request"

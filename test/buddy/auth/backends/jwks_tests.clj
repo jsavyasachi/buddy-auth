@@ -3,9 +3,17 @@
             [buddy.auth :refer [authenticated? throw-unauthorized]]
             [buddy.auth.backends :as backends]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
+            [buddy.core.codecs :as codecs]
+            [buddy.core.codecs.base64 :as b64]
+            [clojure.string :as str]
+            [clojure.test.check :as tc]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]
             [jose.jwk :as jose-jwk]
             [jose.jwks :as jose-jwks]
             [jose.jwt :as jose-jwt]))
+
+(set! *warn-on-reflection* true)
 
 (def claims {:iss "https://issuer.example"
              :aud ["api://buddy-auth"]
@@ -18,6 +26,9 @@
 (def other-signing-key (jose-jwk/generate :rsa {:kid "jwks-other-key"
                                                 :use :sig
                                                 :alg :rs256}))
+(def symmetric-signing-key (jose-jwk/generate :oct {:kid "jwks-symmetric-key"
+                                                   :use :sig
+                                                   :alg :hs256}))
 (def jwks-source (jose-jwks/local-source [(jose-jwk/public-jwk signing-key)]))
 
 (def jwks-backend
@@ -39,6 +50,19 @@
    (sign-token signing-key claims))
   ([key claims]
    (jose-jwt/sign key claims {:alg :rs256})))
+
+(defn sign-symmetric-token
+  [claims]
+  (jose-jwt/sign symmetric-signing-key claims {:alg :hs256}))
+
+(defn replace-jwt-algorithm
+  [token algorithm]
+  (let [header (-> (b64/encode (str "{\"alg\":\"" (name algorithm) "\",\"typ\":\"JWT\"}"))
+                   codecs/bytes->str
+                   (str/replace "+" "-")
+                   (str/replace "/" "_")
+                   (str/replace "=" ""))]
+    (str header "." (second (str/split token #"\.")) "." (nth (str/split token #"\.") 2))))
 
 (defn make-jwks-request
   [token]
@@ -127,3 +151,19 @@
       (is false "Expected invalid JWKS URL")
       (catch clojure.lang.ExceptionInfo e
         (is (= :invalid-url (:jose/error (ex-data e))))))))
+
+(def unexpected-jws-algorithm-gen
+  (gen/elements [:none :hs256 :es256]))
+
+(deftest jwks-rejects-unexpected-signing-algorithms
+  (let [result (tc/quick-check
+                30
+                (prop/for-all [algorithm unexpected-jws-algorithm-gen]
+                  (let [token (sign-symmetric-token claims)
+                        token (replace-jwt-algorithm token algorithm)
+                        request (make-jwks-request token)
+                        handler (wrap-authentication identity jwks-backend)
+                        request' (handler request)]
+                    (and (not (authenticated? request'))
+                         (nil? (:identity request'))))))]
+    (is (= true (:pass? result)) (pr-str result))))
