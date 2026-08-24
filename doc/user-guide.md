@@ -18,7 +18,7 @@ _buddy-auth_ is a stable library. This is a maintenance fork of
 deps.edn:
 
 ```clojure
-net.clojars.savya/buddy-auth {:mvn/version "4.0.2"}
+net.clojars.savya/buddy-auth {:mvn/version "4.1.0"}
 ```
 
 Leiningen:
@@ -50,7 +50,7 @@ middleware and backend.
 ```clojure
 {:deps
  {org.clojure/clojure {:mvn/version "1.12.1"}
-  net.clojars.savya/buddy-auth {:mvn/version "4.0.2"}
+  net.clojars.savya/buddy-auth {:mvn/version "4.1.0"}
   ring/ring-core {:mvn/version "1.12.2"}}}
 ```
 
