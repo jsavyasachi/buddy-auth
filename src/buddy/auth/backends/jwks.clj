@@ -17,6 +17,7 @@
   (:require [buddy.auth.protocols :as proto]
             [buddy.auth.http :as http]
             [buddy.auth :refer [authenticated?]]
+            [buddy.auth.backends.verification :as verification]
             [jose.jwt :as jose-jwt]
             [jose.jwks :as jose-jwks]))
 
@@ -69,12 +70,11 @@
         (parse-header request token-name))
 
       (-authenticate [_ request data]
-        (try
-          (authfn (jose-jwt/verify-with-jwks source data options))
-          (catch clojure.lang.ExceptionInfo e
-            (when (fn? on-error)
-              (on-error request e))
-            nil)))
+        (let [claims (verification/verify
+                      request on-error
+                      #(jose-jwt/verify-with-jwks source data options))]
+          (when claims
+            (authfn claims))))
 
       proto/IAuthorization
       (-handle-unauthorized [_ request metadata]

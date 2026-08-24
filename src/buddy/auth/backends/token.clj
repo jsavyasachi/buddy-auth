@@ -17,7 +17,10 @@
   (:require [buddy.auth.protocols :as proto]
             [buddy.auth.http :as http]
             [buddy.auth :refer [authenticated?]]
+            [buddy.auth.backends.verification :as verification]
             [buddy.sign.jwt :as jwt]))
+
+(set! *warn-on-reflection* true)
 
 (defn- handle-unauthorized-default
   "Create the default response for an unauthorized request."
@@ -42,12 +45,8 @@
       (parse-header request token-name))
 
     (-authenticate [_ request data]
-      (let [claims (try
-                     (jwt/unsign data secret options)
-                     (catch clojure.lang.ExceptionInfo e
-                       (when (fn? on-error)
-                         (on-error request e))
-                       nil))]
+      (let [claims (verification/verify request on-error
+                                        #(jwt/unsign data secret options))]
         (when claims
           (authfn claims))))
 
@@ -66,12 +65,10 @@
     (-parse [_ request]
       (parse-header request token-name))
     (-authenticate [_ request data]
-      (try
-        (authfn (jwt/decrypt data secret options))
-        (catch clojure.lang.ExceptionInfo e
-          (when (fn? on-error)
-            (on-error request e))
-          nil)))
+      (let [claims (verification/verify request on-error
+                                        #(jwt/decrypt data secret options))]
+        (when claims
+          (authfn claims))))
 
     proto/IAuthorization
     (-handle-unauthorized [_ request metadata]
