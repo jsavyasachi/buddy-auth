@@ -52,6 +52,29 @@ Leiningen:
       (wrap-authentication backend)))
 ```
 
+### Access rules
+
+`wrap-access-rules` accepts reusable named policies and preserves the historical
+allow-on-unmatched default. Set `:default-deny true` to reject requests that do
+not match any route rule. Policy references may be keywords or strings; unknown
+names fail during compilation.
+
+```clojure
+(wrap-access-rules handler
+  {:policies {:member {:and [authenticated? has-member-role?]}}
+   :rules [{:match {:and [{:uri "/account/:id"}
+                          {:host "app.example.com"}
+                          {:header {"x-tenant" "acme"}}
+                          {:query-param {"view" #{"summary" "full"}}}]}
+            :handler :member}]
+   :default-deny true})
+```
+
+Request matchers support `:uri`, `:uris`, and `:pattern` together with
+`:host`, `:header`, and `:query-param`. Matcher expressions use `:and`, `:or`,
+and `:not`; scalar values compare exactly, regular expressions match strings,
+and collections match when any value matches.
+
 Full guide: [cljdoc](https://cljdoc.org/d/net.clojars.savya/buddy-auth) and `doc/user-guide.md`.
 
 ## Maintenance fork
