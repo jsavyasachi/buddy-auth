@@ -5,6 +5,8 @@
             [buddy.auth.protocols :as proto]
             [buddy.auth.middleware :as mw]))
 
+(set! *warn-on-reflection* true)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Authentication middleware tests
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -195,6 +197,23 @@
       (is (= (:body @response) "error"))
       (is (= (:status @response) 401))
       (is (= (:data @response) {:foo :bar}))
+      (is (not (realized? exception)))))
+
+  (testing "Reject an unauthorized exception raised asynchronously"
+    (let [raised (promise)
+          handler (fn [_ respond raise]
+                    (deliver raised raise))
+          handler (mw/wrap-authorization handler autz-backend)
+          response (promise)
+          exception (promise)]
+      (handler {} response exception)
+      (deref (future (try
+                       (throw-unauthorized {:foo :bar})
+                       (catch Exception e
+                         (@raised e)))
+                     ) 100 ::timeout)
+      (is (= {:body "error" :status 401 :data {:foo :bar}}
+             (deref response 100 ::timeout)))
       (is (not (realized? exception)))))
 
   ;; (testing "Unauthorized request with custom exception"
