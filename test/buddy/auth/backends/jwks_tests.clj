@@ -7,6 +7,8 @@
             [jose.jwks :as jose-jwks]
             [jose.jwt :as jose-jwt]))
 
+(set! *warn-on-reflection* true)
+
 (def claims {:iss "https://issuer.example"
              :aud ["api://buddy-auth"]
              :sub "user-1"
@@ -127,3 +129,22 @@
       (is false "Expected invalid JWKS URL")
       (catch clojure.lang.ExceptionInfo e
         (is (= :invalid-url (:jose/error (ex-data e))))))))
+
+(deftest jwks-bearer-challenge-test
+  (let [backend (backends/jwks {:source jwks-source
+                                :options {:algs #{:rs256}}
+                                :bearer-challenge true})
+        request (make-jwks-request "garbage")
+        handler (-> (fn [_] (throw-unauthorized))
+                    (wrap-authorization backend)
+                    (wrap-authentication backend))
+        response (handler request)]
+    (is (= 401 (:status response)))
+    (is (= "Bearer error=\"invalid_token\", error_description=\"The access token is invalid\""
+           (get-in response [:headers "WWW-Authenticate"]))))
+  (testing "Bearer parsing is case-insensitive"
+    (let [request (assoc-in (make-jwks-request (sign-token claims))
+                            [:headers "authorization"]
+                            (str "bEaReR " (sign-token claims)))
+          request' ((wrap-authentication identity jwks-backend) request)]
+      (is (authenticated? request')))))

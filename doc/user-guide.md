@@ -191,6 +191,11 @@ key of the request.
 _buddy_ only parses the request and calls the user function to authenticate it.
 You must build and store the tokens.
 
+The `Bearer` Authorization scheme is parsed case-insensitively. To emit an RFC 6750
+`WWW-Authenticate` Bearer challenge on default 401 and 403 responses, set
+`:bearer-challenge true`. The option is disabled by default, and custom
+`:unauthorized-handler` functions are returned unchanged.
+
 You can see a complete example of this backend <<example-token,here>>.
 
 
@@ -354,6 +359,8 @@ Options:
 - `:options` - claim validation passed to jose-clj (`:iss`, `:aud`, `:clock-skew`,
   `:required`).
 - `:token-name` - the Authorization scheme, `"Bearer"` by default.
+- `:bearer-challenge` - when true, add an RFC 6750 `WWW-Authenticate: Bearer`
+  challenge with an error and description to default 401/403 responses.
 - `:authfn` - transforms validated claims into the request identity.
 - `:on-error` - `(fn [request exception] ...)` runs when validation fails.
 
