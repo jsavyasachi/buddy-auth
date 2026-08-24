@@ -42,6 +42,7 @@ new backend. These are the built-in backends:
 
 | Backend name  | Namespace                      |
 |---------------|--------------------------------|
+| API key       | `buddy.auth.backends/apikey`   |
 | Http Basic    | `buddy.auth.backends/basic`    |
 | Session       | `buddy.auth.backends/session`  |
 | Token         | `buddy.auth.backends/token`    |
@@ -126,6 +127,33 @@ Then wrap your Ring handler with the authentication and authorization middleware
 ```
 
 The authentication process runs for all requests that reach `my-handler`.
+
+
+#### API key
+
+The API-key backend extracts a key from a request and passes it to a caller-
+supplied lookup function. Keys are read from the `X-API-Key` header by default;
+use `:location` with `:header`, `:cookie`, or `:query` to select another
+location. The corresponding names can be configured with `:header-name`,
+`:cookie-name`, and `:query-param`.
+
+```clojure
+(require '[buddy.auth.backends :as backends])
+
+(defn lookup-key
+  [key]
+  (when (= key "good-key")
+    {:user-id 42 :scopes #{:read}}))
+
+(def backend
+  (backends/apikey {:authfn lookup-key
+                    :location :header
+                    :header-name "X-API-Key"}))
+```
+
+The `authfn` return value becomes the request identity. Key storage,
+revocation, and scope enforcement remain the caller's responsibility and can
+be implemented by the lookup function and the returned identity.
 
 
 #### Session

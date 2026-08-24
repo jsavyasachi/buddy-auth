@@ -17,6 +17,7 @@
   ;; jose-clj library. A static require would add this dependency for every
   ;; buddy-auth user. `jwks` loads it when needed.
   (:require [buddy.auth.backends.httpbasic :as httpbasic]
+            [buddy.auth.backends.apikey :as apikey]
             [buddy.auth.backends.token :as token]
             [buddy.auth.backends.session :as session]))
 
@@ -33,6 +34,15 @@
 (def http-basic
   "Alias for `basic`."
   basic)
+
+(defn apikey
+  "Create an API-key authentication backend."
+  ([] (apikey nil))
+  ([opts] (apikey/api-key-backend opts)))
+
+(def api-key
+  "Alias for `apikey`."
+  apikey)
 
 (defn session
   "Create an HTTP session authentication backend.
