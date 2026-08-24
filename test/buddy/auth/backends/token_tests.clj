@@ -9,6 +9,8 @@
             [buddy.auth.backends.token :as token]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]))
 
+(set! *warn-on-reflection* true)
+
 (def secret "test-secret-key")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -34,7 +36,12 @@
   (testing "Return nil for a different authorization header name"
     (let [parse #'token/parse-header
           parsed (parse (make-request "foo") "MyToken")]
-     (is (= parsed nil)))))
+      (is (= parsed nil)))))
+
+(deftest bearer-parse-is-case-insensitive-test
+  (testing "Parse a Bearer authorization scheme without regard to case"
+    (let [parse #'token/parse-header]
+      (is (= "foo" (parse {:headers {"authorization" "bEaReR foo"}} "Bearer"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Tests: JWS
@@ -303,3 +310,48 @@
                       (wrap-authentication backend))
           response (handler request)]
         (is (= (:status response) 3000)))))
+
+(deftest bearer-challenge-test
+  (let [backend (backends/token {:authfn token-authfn
+                                 :token-name "Bearer"
+                                 :bearer-challenge true})]
+    (testing "Add an RFC 6750 challenge to an unauthenticated 401 response"
+      (let [request (make-request "token3")
+            request (assoc-in request [:headers "authorization"] "Bearer token3")
+            handler (-> (fn [_] (throw-unauthorized))
+                        (wrap-authorization backend)
+                        (wrap-authentication backend))
+            response (handler request)]
+        (is (= 401 (:status response)))
+        (is (= "Bearer error=\"invalid_token\", error_description=\"The access token is invalid\""
+               (get-in response [:headers "WWW-Authenticate"])))))
+
+    (testing "Add an insufficient-scope challenge to an authenticated 403 response"
+      (let [request {:headers {"authorization" "Bearer token1"}}
+            handler (-> (fn [_] (throw-unauthorized))
+                        (wrap-authorization backend)
+                        (wrap-authentication backend))
+            response (handler request)]
+        (is (= 403 (:status response)))
+        (is (= "Bearer error=\"insufficient_scope\", error_description=\"The request requires higher privileges than provided by the access token\""
+               (get-in response [:headers "WWW-Authenticate"])))))
+
+    (testing "Keep challenges disabled by default"
+      (let [backend (backends/token {:authfn token-authfn :token-name "Bearer"})
+            handler (-> (fn [_] (throw-unauthorized))
+                        (wrap-authorization backend)
+                        (wrap-authentication backend))
+            response (handler (assoc-in (make-request "token3") [:headers "authorization"] "Bearer token3"))]
+        (is (nil? (get-in response [:headers "WWW-Authenticate"])))))
+
+    (testing "Do not alter a custom unauthorized handler"
+      (let [backend (backends/token {:authfn token-authfn
+                                     :token-name "Bearer"
+                                     :bearer-challenge true
+                                     :unauthorized-handler (fn [_ _] {:status 499 :headers {"X-Test" "ok"}})})
+            request (assoc-in (make-request "token3") [:headers "authorization"] "Bearer token3")
+            handler (-> (fn [_] (throw-unauthorized))
+                        (wrap-authorization backend)
+                        (wrap-authentication backend))
+            response (handler request)]
+        (is (= {:status 499 :headers {"X-Test" "ok"}} response))))))

@@ -14,7 +14,8 @@
 
 (ns buddy.auth.backends.jwks
   "The JWKS authentication and authorization backend."
-  (:require [buddy.auth.protocols :as proto]
+  (:require [clojure.string :as str]
+            [buddy.auth.protocols :as proto]
             [buddy.auth.http :as http]
             [buddy.auth :refer [authenticated?]]
             [buddy.auth.backends.verification :as verification]
@@ -34,11 +35,26 @@
     {:status 403 :headers {} :body "Permission denied"}
     {:status 401 :headers {} :body "Unauthorized"}))
 
+(defn- bearer-challenge
+  [request]
+  (if (authenticated? request)
+    "Bearer error=\"insufficient_scope\", error_description=\"The request requires higher privileges than provided by the access token\""
+    "Bearer error=\"invalid_token\", error_description=\"The access token is invalid\""))
+
+(defn- handle-unauthorized
+  [request bearer-challenge?]
+  (let [response (handle-unauthorized-default request)]
+    (if bearer-challenge?
+      (assoc-in response [:headers "WWW-Authenticate"] (bearer-challenge request))
+      response)))
+
 (defn- parse-header
   [request token-name]
-  (some->> (http/-get-header request "authorization")
-           (re-find (re-pattern (str "^" token-name " (.+)$")))
-           (second)))
+  (let [case-insensitive? (= "bearer" (str/lower-case token-name))
+        prefix (if case-insensitive? "(?i)" "")]
+    (some->> (http/-get-header request "authorization")
+             (re-find (re-pattern (str prefix "^" (java.util.regex.Pattern/quote token-name) " (.+)$")))
+             (second))))
 
 (defn- jwks-source
   [{:keys [source jwks-url jwks-opts]}]
@@ -135,7 +151,7 @@
 
   :options must contain :algs or :alg to declare the expected JWT algorithm.
   For example, pass :options {:algs #{:rs256}}."
-  [{:keys [authfn unauthorized-handler options token-name on-error]
+  [{:keys [authfn unauthorized-handler options token-name on-error bearer-challenge]
     :as opts
     :or {authfn identity options {} token-name "Bearer"}}]
   {:pre [(ifn? authfn)]}
@@ -159,4 +175,4 @@
       (-handle-unauthorized [_ request metadata]
         (if unauthorized-handler
           (unauthorized-handler request metadata)
-          (handle-unauthorized-default request))))))
+          (handle-unauthorized request bearer-challenge))))))
