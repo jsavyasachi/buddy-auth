@@ -15,6 +15,8 @@
 (ns buddy.auth.middleware
   (:require [buddy.auth.protocols :as proto]))
 
+(set! *warn-on-reflection* true)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Authentication
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -102,6 +104,17 @@
           (catch Exception e
             (authorization-error request e backend))))
     ([request respond raise]
-     (try (handler request respond raise)
-          (catch Exception e
-            (respond (authorization-error request e backend)))))))
+     (letfn [(wrapped-respond [response]
+               (try
+                 (respond response)
+                 (catch Exception e
+                   (raise e))))
+             (wrapped-raise [e]
+               (try
+                 (wrapped-respond (authorization-error request e backend))
+                 (catch Exception e
+                   (raise e))))]
+       (try
+         (handler request wrapped-respond wrapped-raise)
+         (catch Exception e
+           (wrapped-raise e)))))))
