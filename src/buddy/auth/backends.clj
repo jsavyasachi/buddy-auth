@@ -20,6 +20,8 @@
             [buddy.auth.backends.token :as token]
             [buddy.auth.backends.session :as session]))
 
+(set! *warn-on-reflection* true)
+
 (defn basic
   "Create an HTTP Basic authentication backend.
 
@@ -78,6 +80,39 @@
                        {:missing-dependency 'net.clojars.savya/jose-clj}
                        e))))
    ((resolve 'buddy.auth.backends.jwks/jwks-backend) opts)))
+
+(defn discover-jwks-url
+  "Discover an OIDC provider's JWKS URL.
+
+  Requires the optional `net.clojars.savya/jose-clj` dependency."
+  ([issuer]
+   (try
+     (require 'buddy.auth.backends.jwks)
+     (catch Exception e
+       (throw (ex-info (str "The OIDC backend requires the optional "
+                            "net.clojars.savya/jose-clj dependency on the "
+                            "classpath. Add it to your project to use it.")
+                       {:missing-dependency 'net.clojars.savya/jose-clj}
+                       e))))
+   ((resolve 'buddy.auth.backends.jwks/discover-jwks-url) issuer))
+  ([issuer fetch-json]
+   (require 'buddy.auth.backends.jwks)
+   ((resolve 'buddy.auth.backends.jwks/discover-jwks-url) issuer fetch-json)))
+
+(defn oidc
+  "Create a JWKS authentication backend using OIDC issuer discovery.
+
+  Requires the optional `net.clojars.savya/jose-clj` dependency."
+  ([opts]
+   (try
+     (require 'buddy.auth.backends.jwks)
+     (catch Exception e
+       (throw (ex-info (str "The OIDC backend requires the optional "
+                            "net.clojars.savya/jose-clj dependency on the "
+                            "classpath. Add it to your project to use it.")
+                       {:missing-dependency 'net.clojars.savya/jose-clj}
+                       e))))
+   ((resolve 'buddy.auth.backends.jwks/oidc-backend) opts)))
 
 (defn token
   "Create a generic token authentication backend.
