@@ -1,6 +1,5 @@
 (ns buddy.auth.backends.token-tests
-  (:require [clojure.test :refer :all]
-            [buddy.core.codecs :refer :all]
+  (:require [clojure.test :refer [deftest is testing]]
             [buddy.core.hash :as hash]
             [buddy.core.keys :as keys]
             [buddy.sign.jwt :as jwt]
@@ -106,7 +105,7 @@
 
   (testing "Return 401 for JWS authorization with a wrong key"
     (let [request (make-jws-request jws-data "wrong-key")
-          handler (-> (fn [req] (throw-unauthorized))
+          handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization jws-backend)
                       (wrap-authentication jws-backend))
           response (handler request)]
@@ -115,7 +114,7 @@
 
   (testing "Return 403 for an authenticated unauthorized JWS request"
     (let [request (make-jws-request {:userid 1} jws-secret)
-          handler (-> (fn [req] (throw-unauthorized))
+          handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization jws-backend)
                       (wrap-authentication jws-backend))
           response (handler request)]
@@ -127,7 +126,7 @@
           onerror (fn [_ _] {:status 3000})
           backend (backends/jws {:secret jws-secret
                                  :unauthorized-handler onerror})
-          handler (-> (fn [req] (throw-unauthorized))
+          handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization backend)
                       (wrap-authentication backend))
           response (handler request)]
@@ -153,7 +152,7 @@
           handler (-> identity
                       (wrap-authorization backend)
                       (wrap-authentication backend))
-          response (handler request)]
+          _        (handler request)]
       (is (nil? (:identity request)))
       (is (= :bar (:foo request)))))
 
@@ -204,7 +203,7 @@
 
   (testing "Return 401 for JWE authorization with a wrong key"
     (let [request (make-jwe-request jwe-data (hash/sha256 "wrong-key"))
-          handler (-> (fn [req] (throw-unauthorized))
+          handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization jwe-backend)
                       (wrap-authentication jwe-backend))
           response (handler request)]
@@ -212,7 +211,7 @@
 
   (testing "Return 403 for an authenticated unauthorized JWE request"
     (let [request (make-jwe-request {:userid 1} jwe-secret)
-          handler (-> (fn [req] (throw-unauthorized))
+          handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization jwe-backend)
                       (wrap-authentication jwe-backend))
           response (handler request)]
@@ -223,7 +222,7 @@
           onerror (fn [_ _] {:status 3000})
           backend (backends/jwe {:secret jwe-secret
                                  :unauthorized-handler onerror})
-          handler (-> (fn [req] (throw-unauthorized))
+          handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization backend)
                       (wrap-authentication backend))
           response (handler request)]
@@ -264,7 +263,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn token-authfn
-  [request token]
+  [_ token]
   (let [data {:token1 {:userid 1}
               :token2 {:userid 2}}]
     (get data (keyword token))))
@@ -286,7 +285,7 @@
 
   (testing "Handle an unauthorized token request"
     (let [request (make-request "token1")
-          handler (-> (fn [request] (throw-unauthorized))
+          handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization backend)
                       (wrap-authentication backend))
           response (handler request)]
@@ -294,7 +293,7 @@
 
   (testing "Handle a second unauthorized token request"
     (let [request (make-request "token3")
-          handler (-> (fn [request] (throw-unauthorized))
+          handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization backend)
                       (wrap-authentication backend))
           response (handler request)]
@@ -305,7 +304,7 @@
           onerror (fn [_ _] {:status 3000})
           backend (backends/token {:authfn token-authfn
                                         :unauthorized-handler onerror})
-          handler (-> (fn [request] (throw-unauthorized))
+          handler (-> (fn [_] (throw-unauthorized))
                       (wrap-authorization backend)
                       (wrap-authentication backend))
           response (handler request)]

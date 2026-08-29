@@ -1,5 +1,5 @@
 (ns buddy.auth.backends.apikey-tests
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is]]
             [buddy.auth :refer [throw-unauthorized]]
             [buddy.auth.backends :as backends]
             [buddy.auth.backends.apikey :as apikey]

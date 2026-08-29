@@ -1,5 +1,5 @@
 (ns buddy.auth.accessrules-tests
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is testing]]
             [buddy.auth.http :as http]
             [buddy.auth.accessrules :as acr :refer (success error restrict wrap-access-rules)]))
 
@@ -9,8 +9,8 @@
 (defn fail [v]
   (acr/error (if (and (map? v) (:msg v)) (:msg v) v)))
 
-(defn ok2 [v] true)
-(defn fail2 [v] false)
+(defn ok2 [_] true)
+(defn fail2 [_] false)
 
 (declare test-handler)
 
@@ -171,14 +171,14 @@
   (testing "Use an on-error handler for a restricted handler"
     (let [handler (restrict test-handler
                             {:handler {:or [fail fail]}
-                             :on-error (fn [req val] (http/response (str "onfail-" val)))})
+                             :on-error (fn [_ val] (http/response (str "onfail-" val)))})
           rsp     (handler {:msg "test"})]
       (is (= "onfail-test" (:body rsp)))))
 
   (testing "Use an on-error handler for an asynchronous restricted handler"
     (let [handler (restrict async-test-handler
                             {:handler {:or [fail fail]}
-                             :on-error (fn [req val] (http/response (str "onfail-" val)))})
+                             :on-error (fn [_ val] (http/response (str "onfail-" val)))})
           req     {:msg "test"}
           rsp     (promise)
           ex      (promise)]
@@ -224,7 +224,7 @@
             :handler {:and [fail ok]}}]})
 
 (defn on-error
-  [req val]
+  [_ val]
   (http/response val 400))
 
 (def handler1

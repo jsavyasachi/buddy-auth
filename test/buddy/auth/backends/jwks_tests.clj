@@ -1,5 +1,5 @@
 (ns buddy.auth.backends.jwks-tests
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest is testing]]
             [buddy.auth :refer [authenticated? throw-unauthorized]]
             [buddy.auth.backends :as backends]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]

@@ -1,6 +1,5 @@
 (ns buddy.auth.middleware-tests
-  (:require [clojure.test :refer :all]
-            [buddy.core.codecs :refer :all]
+  (:require [clojure.test :refer [deftest is testing]]
             [buddy.auth :refer [throw-unauthorized]]
             [buddy.auth.protocols :as proto]
             [buddy.auth.middleware :as mw]))
@@ -18,7 +17,7 @@
     (-parse [_ request]
       (get request token-name))
 
-    (-authenticate [_ request data]
+    (-authenticate [_ _ data]
       (assert data)
       (when (= data secret)
         :valid))))
@@ -131,7 +130,7 @@
 
     (testing "Call the asynchronous handler exactly once"
       (let [state (atom 0)
-            counter (fn [request respond raise]
+            counter (fn [request respond _]
                       (swap! state inc)
                       (respond request))
             handler (apply mw/wrap-authentication counter backends)
@@ -161,7 +160,7 @@
 (def autz-backend
   (reify
     proto/IAuthorization
-    (-handle-unauthorized [_ request data]
+    (-handle-unauthorized [_ _ data]
       {:body "error" :status 401 :data data})))
 
 (deftest wrap-authorization
@@ -179,7 +178,7 @@
       (is (not (realized? exception)))))
 
   (testing "Reject an unauthorized request"
-    (let [handler (fn [req]
+    (let [handler (fn [_]
                     (throw-unauthorized {:foo :bar}))
           handler (mw/wrap-authorization handler autz-backend)
           response (handler {})]
@@ -188,7 +187,7 @@
       (is (= (:data response) {:foo :bar}))))
 
   (testing "Reject an unauthorized asynchronous request"
-    (let [handler (fn [req respond raise]
+    (let [handler (fn [_ _ _]
                     (throw-unauthorized {:foo :bar}))
           handler (mw/wrap-authorization handler autz-backend)
           response (promise)
@@ -201,7 +200,7 @@
 
   (testing "Reject an unauthorized exception raised asynchronously"
     (let [raised (promise)
-          handler (fn [_ respond raise]
+          handler (fn [_ _ raise]
                     (deliver raised raise))
           handler (mw/wrap-authorization handler autz-backend)
           response (promise)
@@ -229,8 +228,8 @@
   ;;     (is (= (:data response) {:foo :bar}))))
 
   (testing "Reject an unauthorized request with a function backend"
-    (let [backend (fn [request data] {:body "error" :status 401 :data data})
-          handler (fn [req]
+    (let [backend (fn [_ data] {:body "error" :status 401 :data data})
+          handler (fn [_]
                     (throw-unauthorized {:foo :bar}))
           handler (mw/wrap-authorization handler backend)
           response (handler {})]
@@ -239,8 +238,8 @@
       (is (= (:data response) {:foo :bar}))))
 
   (testing "Reject an unauthorized asynchronous request with a function backend"
-    (let [backend (fn [request data] {:body "error" :status 401 :data data})
-          handler (fn [req respond raise]
+    (let [backend (fn [_ data] {:body "error" :status 401 :data data})
+          handler (fn [_ _ _]
                     (throw-unauthorized {:foo :bar}))
           handler (mw/wrap-authorization handler backend)
           response (promise)

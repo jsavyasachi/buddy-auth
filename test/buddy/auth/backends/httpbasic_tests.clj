@@ -1,9 +1,8 @@
 (ns buddy.auth.backends.httpbasic-tests
-  (:require [clojure.test :refer :all]
-            [buddy.core.codecs :refer :all]
+  (:require [clojure.test :refer [deftest is testing]]
+            [buddy.core.codecs :refer [bytes->str]]
             [buddy.core.codecs.base64 :as b64]
             [buddy.auth :refer [throw-unauthorized]]
-            [buddy.auth.http :as http]
             [buddy.auth.backends :as backends]
             [buddy.auth.backends.httpbasic :as httpbasic]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
@@ -26,7 +25,7 @@
      {:headers {"auThorIzation" auth "lala" "2"}})))
 
 (defn auth-fn
-  [request {:keys [username]}]
+  [_ {:keys [username]}]
   (if (= username "foo")
     :valid
     nil))
@@ -144,7 +143,7 @@
       (is (= (:identity response) :valid))))
 
   (testing "Return 403 for an authenticated unauthorized request"
-    (let [handler (-> (fn [req] (throw-unauthorized {:msg "FooMsg"}))
+    (let [handler (-> (fn [_] (throw-unauthorized {:msg "FooMsg"}))
                       (wrap-authorization backend)
                       (wrap-authentication backend))
           request (make-request "foo" "pass")
