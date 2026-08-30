@@ -73,10 +73,46 @@
                          (if (and (string? header)
                                   (str/starts-with? header "Basic ")
                                   (not= parsed ::invalid-base64))
-                           (or (nil? parsed)
-                               (= {:username "" :password nil} parsed))
+                           (nil? parsed)
                            true)))))]
     (is (= true (:pass? result)) (pr-str result))))
+
+(defn encode-basic
+  "Build a Basic header from an already-formed credential payload."
+  [payload]
+  (str "Basic " (bytes->str (b64/encode payload))))
+
+(deftest basic-credentials-without-a-colon-are-rejected
+  (testing "RFC 7617 section 2 defines the payload as user-id \":\" password"
+    (testing "a payload with no colon is malformed and yields no credentials"
+      (is (nil? (parse-header (encode-basic "username"))))
+      (is (nil? (parse-header (encode-basic ""))))
+      (is (nil? (parse-header (encode-basic "abc")))))
+
+    (testing "undecodable base64 decodes to a colonless payload and yields nil"
+      (is (nil? (parse-header "Basic !!!!not-base64!!!!")))
+      (is (nil? (parse-header "Basic /w=="))))
+
+    (testing "an empty password is legal and still parses"
+      (is (= {:username "user" :password ""}
+             (parse-header (encode-basic "user:")))))
+
+    (testing "an empty user-id with a password still parses"
+      (is (= {:username "" :password "pass"}
+             (parse-header (encode-basic ":pass")))))
+
+    (testing "a password containing colons still parses"
+      (is (= {:username "user" :password "pa:ss"}
+             (parse-header (encode-basic "user:pa:ss")))))))
+
+(deftest malformed-credentials-never-reach-authfn
+  (let [seen (atom [])
+        backend (backends/http-basic
+                 {:authfn (fn [_ data] (swap! seen conj data) :valid)})
+        response ((wrap-authentication identity backend)
+                  {:headers {"authorization" (encode-basic "username")}})]
+    (is (nil? (:identity response)))
+    (is (= [] @seen) "A half-parsed credential must not be handed to authfn")))
 
 (def basic-char-gen
   (gen/elements [\a \Z \0 \9 \space \: \. \* \+ \? \( \) \[ \] \{ \} \u00e9 \u65e5 \u0436]))

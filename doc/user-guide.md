@@ -291,6 +291,13 @@ auth data from the request. It must return a logical true value: a user id, a
 user instance, or something different to `nil` and `false`. _buddy-auth_ calls
 it only if step 1 (parse) returns something.
 
+Step 1 only returns credentials for a well-formed header. RFC 7617, section 2,
+defines the decoded payload as `user-id ":" password`, so a payload with no
+colon at all - including anything that was not valid base64 - is malformed and
+parses to `nil`, leaving the request unauthenticated instead of calling
+`authfn` with a `nil` password. An empty password (`user:`) is legal and still
+parses, as does a password that itself contains colons.
+
 Then wrap your Ring handler with the authentication and authorization middleware:
 
 ```clojure

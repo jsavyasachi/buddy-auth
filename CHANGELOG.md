@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `backends/basic` no longer treats a malformed HTTP Basic header as a
+  credential. RFC 7617, section 2, defines the decoded payload as
+  `user-id ":" password`; a payload with no colon - including anything that was
+  not valid base64 - was handed to `authfn` as `{:username "..." :password nil}`,
+  a footgun for any `authfn` that does not nil-check the password. It now parses
+  to `nil` and the request is simply unauthenticated. An empty password
+  (`user:`) is legal and still parses, as does a password containing colons.
+
 ### Security
 
 - **Breaking.** `backends/oidc` now requires an expected audience. Previously a

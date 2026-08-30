@@ -22,7 +22,13 @@
             [clojure.string :as str]))
 
 (defn- parse-header
-  "Extract and parse the HTTP Basic header from a request."
+  "Extract and parse the HTTP Basic header from a request.
+
+  RFC 7617, section 2, defines the decoded payload as `user-id \":\" password`.
+  A payload with no colon is malformed - as is anything that was not valid
+  base64 to begin with, which decodes to bytes that carry no colon either - so
+  no credentials are returned for it. An empty password (`\"user:\"`) is legal
+  and does parse."
   [request]
   (let [pattern (re-pattern "^Basic (.+)$")
         decoded (some->> (http/-get-header request "authorization")
@@ -30,9 +36,10 @@
                          (second)
                          (b64/decode)
                          (codecs/bytes->str))]
-    (when-let [[username password] (some-> decoded (str/split #":" 2))]
-      {:username username
-       :password password})))
+    (when (some-> decoded (str/includes? ":"))
+      (let [[username password] (str/split decoded #":" 2)]
+        {:username username
+         :password password}))))
 
 (defn http-basic-backend
   [& [{:keys [realm authfn unauthorized-handler] :or {realm "Buddy Auth"}}]]
