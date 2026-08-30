@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased]
+
+### Security
+
+- **Breaking.** `backends/oidc` now requires an expected audience. Previously a
+  backend built without `:audience` (or `:options {:aud ...}`) performed no
+  audience validation at all: the `azp` cross-check degenerated to a
+  no-op, and no `:aud` claim check was configured downstream, so a token the
+  issuer minted for a *different* relying party authenticated successfully.
+  This is the confused-deputy case OIDC Core section 3.1.3.7 exists to prevent,
+  and it is most severe on shared issuers such as Google, Auth0, and Azure AD.
+  Construction without an audience now throws `IllegalArgumentException`.
+  Pass the explicit `:audience :any` sentinel to opt out of the check.
+- `backends/oidc` validates the configured audience against the token's `aud`
+  claim inside the backend's own verifier, not only through the downstream
+  `:aud` claim check, so a single-audience token can no longer bypass it.
+
 ## [4.1.0] - 2026-08-24
 
 ### Fixed

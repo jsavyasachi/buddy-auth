@@ -112,6 +112,9 @@
 (defn oidc
   "Create a JWKS authentication backend using OIDC issuer discovery.
 
+  `:issuer` and an expected audience (`:audience`, or `:options {:aud ...}`)
+  are both required; pass `:audience :any` to opt out of audience validation.
+
   Requires the optional `net.clojars.savya/jose-clj` dependency."
   ([opts]
    (try

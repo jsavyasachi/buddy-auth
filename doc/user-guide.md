@@ -588,9 +588,36 @@ backend for signature and claim validation:
                 :options {:algs #{:rs256}}})
 ```
 
-The configured issuer and audience are validated as standard JWT claims. When
-the token contains multiple audiences, `azp` must match the configured
-audience. A configured nonce must also match the token's `nonce` claim.
+`:audience` is required. Give it the audience (client ID) the issuer mints
+tokens for this application under. Supply it as `:audience` or as
+`:options {:aud ...}`; a backend built without either is rejected with an
+`IllegalArgumentException`.
+
+Audience validation is what separates your application from every other
+relying party of the same issuer. Shared issuers such as Google, Auth0, and
+Azure AD sign valid tokens for many applications with the same keys, so
+without the audience check a token an attacker obtained for *their* application
+would pass signature and issuer validation here and authenticate as its subject
+(OIDC Core, section 3.1.3.7).
+
+For the rare case where the audience genuinely cannot be pinned - a
+single-tenant issuer that serves exactly one relying party, for example - opt
+out with the explicit `:audience :any` sentinel:
+
+```clojure
+(backends/oidc {:issuer "https://issuer.internal"
+                :audience :any
+                :options {:algs #{:rs256}}})
+```
+
+`:any` is the only way to disable the check. Omitting `:audience` does not do
+it, and neither does passing `nil`.
+
+The configured issuer and audience are validated as standard JWT claims, and
+the audience is also checked against the token's `aud` claim by the backend
+itself. When the token contains multiple audiences, `azp` must match the
+configured audience. A configured nonce must also match the token's `nonce`
+claim.
 `backends/discover-jwks-url` is available when only the discovered JWKS URL is
 needed. OIDC discovery uses the JDK HTTP client and does not add a dependency.
 - `:on-error` - `(fn [request exception] ...)` runs when validation fails.

@@ -116,10 +116,12 @@
     (and (or (nil? verifier) (verifier claims context))
          (or (nil? nonce)
              (= nonce (claim-value claims :nonce)))
-         (let [aud (claim-value claims :aud)
-               aud (if (sequential? aud) aud [aud])]
-           (or (<= (count aud) 1)
-               (= audience (claim-value claims :azp)))))))
+         (or (= :any audience)
+             (let [aud (claim-value claims :aud)
+                   aud (if (sequential? aud) aud [aud])]
+               (and (contains? (set aud) audience)
+                    (or (<= (count aud) 1)
+                        (= audience (claim-value claims :azp)))))))))
 
 (declare jwks-backend)
 
@@ -127,24 +129,34 @@
   "Create a JWKS backend from an OIDC issuer.
 
   Discovery is performed when no `:source` or `:jwks-url` is supplied. The
-  expected audience is configured with `:audience` (or `:options {:aud ...}`),
-  and an expected nonce with `:nonce`."
+  expected audience is required and is configured with `:audience` (or
+  `:options {:aud ...}`), and an expected nonce with `:nonce`.
+
+  Audience validation stops a token the issuer minted for a different relying
+  party from authenticating here (OIDC Core 3.1.3.7). Pass the explicit
+  `:audience :any` sentinel to opt out of it."
   [{:keys [issuer audience nonce discovery-fn options]
     :as opts
     :or {options {}}}]
   (when-not issuer
     (throw (IllegalArgumentException. "Expected OIDC :issuer")))
-  (let [audience (or audience (:aud options))
-        nonce (if (contains? opts :nonce) nonce (:nonce options))
-        verifier (oidc-verifier audience nonce (:verifier options))
-        options (cond-> (assoc (dissoc options :nonce :verifier) :iss issuer)
-                  (and audience (not (contains? options :aud))) (assoc :aud audience))
-        jwks-url (or (:jwks-url opts)
-                     (when-not (:source opts)
-                       ((or discovery-fn discover-jwks-url) issuer)))]
-    (jwks-backend (assoc opts
-                         :jwks-url jwks-url
-                         :options (assoc options :verifier verifier)))))
+  (let [audience (or audience (:aud options))]
+    (when-not audience
+      (throw (IllegalArgumentException.
+              (str "Expected OIDC :audience (or :options {:aud ...}); "
+                   "pass :audience :any to opt out of audience validation"))))
+    (let [nonce (if (contains? opts :nonce) nonce (:nonce options))
+          verifier (oidc-verifier audience nonce (:verifier options))
+          options (cond-> (assoc (dissoc options :nonce :verifier) :iss issuer)
+                    (= :any audience) (dissoc :aud)
+                    (and (not= :any audience)
+                         (not (contains? options :aud))) (assoc :aud audience))
+          jwks-url (or (:jwks-url opts)
+                       (when-not (:source opts)
+                         ((or discovery-fn discover-jwks-url) issuer)))]
+      (jwks-backend (assoc opts
+                           :jwks-url jwks-url
+                           :options (assoc options :verifier verifier))))))
 
 (defn jwks-backend
   "Create a JWKS authentication backend.

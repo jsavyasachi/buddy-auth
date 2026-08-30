@@ -192,11 +192,78 @@
 (deftest oidc-construction-discovers-jwks-test
   (let [calls (atom [])]
     (is (some? (backends/oidc {:issuer "https://issuer.example"
+                               :audience "api://buddy-auth"
                                :options {:algs #{:rs256}}
                                :discovery-fn (fn [issuer]
                                                (swap! calls conj issuer)
                                                "https://issuer.example/keys")})))
     (is (= ["https://issuer.example"] @calls))))
+
+(defn- oidc-test-backend
+  [extra]
+  (backends/oidc (merge {:issuer "https://issuer.example"
+                         :source jwks-source
+                         :options {:algs #{:rs256}}
+                         :discovery-fn (fn [_] "https://issuer.example/keys")}
+                        extra)))
+
+(defn- oidc-authenticates?
+  [backend token-claims]
+  (authenticated? ((wrap-authentication identity backend)
+                   (make-jwks-request (sign-token token-claims)))))
+
+(deftest oidc-requires-audience-test
+  (testing "Omitting :audience is rejected at construction"
+    (let [calls (atom [])]
+      (try
+        (backends/oidc {:issuer "https://issuer.example"
+                        :source jwks-source
+                        :options {:algs #{:rs256}}
+                        :discovery-fn (fn [issuer] (swap! calls conj issuer) "x")})
+        (is false "Expected a missing :audience to be rejected")
+        (catch IllegalArgumentException e
+          (is (str/includes? (.getMessage e) ":audience"))))
+      (is (= [] @calls) "Discovery must not run for an invalid configuration")))
+
+  (testing ":options {:aud ...} satisfies the audience requirement"
+    (is (some? (oidc-test-backend {:options {:algs #{:rs256}
+                                             :aud "api://buddy-auth"}}))))
+
+  (testing "A nil :audience is rejected like an omitted one"
+    (is (thrown? IllegalArgumentException
+                 (oidc-test-backend {:audience nil})))))
+
+(deftest oidc-audience-is-validated-test
+  (let [backend (oidc-test-backend {:audience "api://buddy-auth"})
+        base {:iss "https://issuer.example" :sub "user-1"}]
+    (testing "A token minted for another relying party is rejected"
+      (is (not (oidc-authenticates? backend (assoc base :aud "api://other-app")))))
+
+    (testing "A matching single audience authenticates"
+      (is (oidc-authenticates? backend (assoc base :aud "api://buddy-auth"))))
+
+    (testing "Multiple audiences require a matching azp"
+      (is (oidc-authenticates? backend (assoc base
+                                              :aud ["api://buddy-auth" "other"]
+                                              :azp "api://buddy-auth")))
+      (is (not (oidc-authenticates? backend (assoc base
+                                                   :aud ["api://buddy-auth" "other"]
+                                                   :azp "other")))))
+
+    (testing "Multiple foreign audiences without azp are rejected"
+      (is (not (oidc-authenticates? backend (assoc base :aud ["api://other-app" "x"])))))))
+
+(deftest oidc-audience-any-opt-out-test
+  (let [backend (oidc-test-backend {:audience :any})
+        base {:iss "https://issuer.example" :sub "user-1"}]
+    (testing "The explicit :any sentinel disables audience validation"
+      (is (oidc-authenticates? backend (assoc base :aud "api://other-app")))
+      (is (oidc-authenticates? backend (assoc base :aud ["api://other-app" "x"]))))
+
+    (testing "Issuer validation still applies under the opt-out"
+      (is (not (oidc-authenticates? backend (assoc base
+                                                   :iss "https://evil.example"
+                                                   :aud "api://other-app")))))))
 
 (deftest oidc-errors-are-not-mislabeled-test
   (with-redefs [jwks/discover-jwks-url
