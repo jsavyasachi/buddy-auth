@@ -1,6 +1,7 @@
 (ns build
   (:refer-clojure :exclude [compile])
-  (:require [clojure.string]
+  (:require [clojure.edn :as edn]
+            [clojure.string]
             [clojure.tools.build.api :as b]
             [deps-deploy.deps-deploy :as dd]))
 
@@ -18,11 +19,30 @@
 ;; dependency. Declaring it `provided` keeps it off consumers' transitive
 ;; classpath while still putting it on cljdoc's analysis classpath, so the
 ;; buddy.auth.backends.jwks namespace loads during doc generation.
+;;
+;; The version is read from deps.edn (jose-clj is declared under :deps and/or
+;; several aliases, e.g. :dev and :test) instead of being hardcoded here, so
+;; the POM can't drift out of sync with the version the code is actually
+;; developed and tested against. Every declared version is collected and
+;; checked for agreement: a missing or conflicting declaration is a build
+;; error, not a silently wrong or blank POM entry.
+(defn- jose-clj-version []
+  (let [deps-map (edn/read-string (slurp "deps.edn"))
+        versions (->> deps-map
+                      (tree-seq coll? seq)
+                      (filter map?)
+                      (keep #(get-in % ['net.clojars.savya/jose-clj :mvn/version]))
+                      distinct)]
+    (case (count versions)
+      0 (throw (ex-info "jose-clj version not found in deps.edn" {:deps-edn deps-map}))
+      1 (first versions)
+      (throw (ex-info "jose-clj versions disagree across deps.edn" {:versions versions})))))
+
 (defn- inject-provided-dep [pom-path]
   (let [dep (str "    <dependency>\n"
                  "      <groupId>net.clojars.savya</groupId>\n"
                  "      <artifactId>jose-clj</artifactId>\n"
-                 "      <version>0.1.1</version>\n"
+                 "      <version>" (jose-clj-version) "</version>\n"
                  "      <scope>provided</scope>\n"
                  "    </dependency>\n  </dependencies>")
         pom (slurp pom-path)]
