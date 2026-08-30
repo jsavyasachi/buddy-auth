@@ -6,7 +6,7 @@
             [deps-deploy.deps-deploy :as dd]))
 
 (def lib 'net.clojars.savya/buddy-auth)
-(def version "4.1.0")
+(def version "5.0.0")
 (def class-dir "target/classes")
 (def basis (b/create-basis {:project "deps.edn"}))
 (def jar-file (format "target/%s-%s.jar" (name lib) version))

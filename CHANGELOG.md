@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-08-30
+
 ### Fixed
 
 - `backends/basic` no longer treats a malformed HTTP Basic header as a
