@@ -12,7 +12,8 @@
             [clojure.test.check.properties :as prop]
             [jose.jwk :as jose-jwk]
             [jose.jwks :as jose-jwks]
-            [jose.jwt :as jose-jwt]))
+            [jose.jwt :as jose-jwt])
+  (:import (java.time Instant)))
 
 (set! *warn-on-reflection* true)
 
@@ -51,6 +52,11 @@
    (sign-token signing-key claims))
   ([key claims]
    (jose-jwt/sign key claims {:alg :rs256})))
+
+(defn- expiring
+  "Add the `exp` claim OIDC Core section 2 makes REQUIRED on every ID token."
+  [token-claims]
+  (assoc token-claims :exp (.plusSeconds (Instant/now) 3600)))
 
 (defn sign-symmetric-token
   [claims]
@@ -172,9 +178,10 @@
              (discover issuer (fn [_] {"jwks_uri" "https://issuer.example/keys"}))))
       (is false "OIDC discovery helper is missing"))
     (if-let [oidc (some-> (ns-resolve 'buddy.auth.backends 'oidc) deref)]
-      (let [valid-claims (assoc claims :aud ["api://buddy-auth" "other"]
-                                :azp "api://buddy-auth"
-                                :nonce "nonce-1")
+      (let [valid-claims (expiring (assoc claims
+                                          :aud ["api://buddy-auth" "other"]
+                                          :azp "api://buddy-auth"
+                                          :nonce "nonce-1"))
             backend (oidc {:issuer issuer
                            :source jwks-source
                            :options {:algs #{:rs256}}
@@ -235,7 +242,7 @@
 
 (deftest oidc-audience-is-validated-test
   (let [backend (oidc-test-backend {:audience "api://buddy-auth"})
-        base {:iss "https://issuer.example" :sub "user-1"}]
+        base (expiring {:iss "https://issuer.example" :sub "user-1"})]
     (testing "A token minted for another relying party is rejected"
       (is (not (oidc-authenticates? backend (assoc base :aud "api://other-app")))))
 
@@ -255,7 +262,7 @@
 
 (deftest oidc-audience-any-opt-out-test
   (let [backend (oidc-test-backend {:audience :any})
-        base {:iss "https://issuer.example" :sub "user-1"}]
+        base (expiring {:iss "https://issuer.example" :sub "user-1"})]
     (testing "The explicit :any sentinel disables audience validation"
       (is (oidc-authenticates? backend (assoc base :aud "api://other-app")))
       (is (oidc-authenticates? backend (assoc base :aud ["api://other-app" "x"]))))
@@ -264,6 +271,38 @@
       (is (not (oidc-authenticates? backend (assoc base
                                                    :iss "https://evil.example"
                                                    :aud "api://other-app")))))))
+
+(deftest oidc-requires-exp-test
+  (let [backend (oidc-test-backend {:audience "api://buddy-auth"})
+        base {:iss "https://issuer.example" :sub "user-1" :aud "api://buddy-auth"}]
+    (testing "A token carrying no exp claim never expires and is rejected"
+      (is (not (oidc-authenticates? backend base))))
+
+    (testing "A token with a future exp still authenticates"
+      (is (oidc-authenticates? backend (expiring base))))
+
+    (testing "An expired token is still rejected"
+      (is (not (oidc-authenticates?
+                backend
+                (assoc base :exp (.minusSeconds (Instant/now) 60))))))
+
+    (testing "The caller's own :required claims are kept alongside exp"
+      (let [backend (oidc-test-backend {:audience "api://buddy-auth"
+                                        :options {:algs #{:rs256}
+                                                  :required [:jti]}})]
+        (is (not (oidc-authenticates? backend (expiring base))))
+        (is (oidc-authenticates? backend (expiring (assoc base :jti "id-1"))))
+        (is (not (oidc-authenticates? backend (assoc base :jti "id-1"))))))
+
+    (testing "The audience opt-out does not opt out of exp"
+      (is (not (oidc-authenticates? (oidc-test-backend {:audience :any}) base))))
+
+    (testing "The plain JWKS backend keeps exp optional"
+      (let [backend (backends/jwks {:source jwks-source
+                                    :options {:iss "https://issuer.example"
+                                              :aud "api://buddy-auth"
+                                              :algs #{:rs256}}})]
+        (is (oidc-authenticates? backend base))))))
 
 (deftest oidc-errors-are-not-mislabeled-test
   (with-redefs [jwks/discover-jwks-url

@@ -114,6 +114,7 @@
 
   `:issuer` and an expected audience (`:audience`, or `:options {:aud ...}`)
   are both required; pass `:audience :any` to opt out of audience validation.
+  Tokens must carry an `exp` claim.
 
   Requires the optional `net.clojars.savya/jose-clj` dependency."
   ([opts]

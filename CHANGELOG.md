@@ -16,6 +16,13 @@
 - `backends/oidc` validates the configured audience against the token's `aud`
   claim inside the backend's own verifier, not only through the downstream
   `:aud` claim check, so a single-audience token can no longer bypass it.
+- **Breaking.** `backends/oidc` now requires an `exp` claim on every token it
+  accepts. A token carrying no `exp` at all previously authenticated and stayed
+  valid forever, so a leaked one could never age out. OIDC Core section 2 makes
+  `exp` REQUIRED on an ID token and RFC 9068 does the same for a JWT access
+  token, so there is no opt-out. A caller's own `:options {:required [...]}`
+  claims are kept alongside `exp` rather than replaced. `backends/jwks` is
+  unchanged: plain JWT leaves `exp` optional.
 
 ## [4.1.0] - 2026-08-24
 

@@ -134,7 +134,11 @@
 
   Audience validation stops a token the issuer minted for a different relying
   party from authenticating here (OIDC Core 3.1.3.7). Pass the explicit
-  `:audience :any` sentinel to opt out of it."
+  `:audience :any` sentinel to opt out of it.
+
+  `exp` is required on every token, so a token without one is rejected instead
+  of authenticating forever (OIDC Core section 2). Any `:options {:required
+  [...]}` the caller supplies is kept alongside it."
   [{:keys [issuer audience nonce discovery-fn options]
     :as opts
     :or {options {}}}]
@@ -147,7 +151,10 @@
                    "pass :audience :any to opt out of audience validation"))))
     (let [nonce (if (contains? opts :nonce) nonce (:nonce options))
           verifier (oidc-verifier audience nonce (:verifier options))
-          options (cond-> (assoc (dissoc options :nonce :verifier) :iss issuer)
+          required (distinct (conj (vec (:required options)) :exp))
+          options (cond-> (assoc (dissoc options :nonce :verifier)
+                                 :iss issuer
+                                 :required required)
                     (= :any audience) (dissoc :aud)
                     (and (not= :any audience)
                          (not (contains? options :aud))) (assoc :aud audience))

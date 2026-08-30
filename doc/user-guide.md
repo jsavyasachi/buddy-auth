@@ -613,6 +613,12 @@ out with the explicit `:audience :any` sentinel:
 `:any` is the only way to disable the check. Omitting `:audience` does not do
 it, and neither does passing `nil`.
 
+`exp` is required on every token this backend accepts. A token with no `exp`
+claim never expires, so a leaked one stays usable forever; OIDC Core, section 2,
+makes the claim REQUIRED on an ID token, and RFC 9068 does the same for a JWT
+access token. There is no opt-out. Claims listed in `:options {:required
+[...]}` are required in addition to `exp`, not instead of it.
+
 The configured issuer and audience are validated as standard JWT claims, and
 the audience is also checked against the token's `aud` claim by the backend
 itself. When the token contains multiple audiences, `azp` must match the
