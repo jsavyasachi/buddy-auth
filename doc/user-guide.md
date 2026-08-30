@@ -24,7 +24,7 @@ net.clojars.savya/buddy-auth {:mvn/version "5.0.0"}
 Leiningen:
 
 ```clojure
-[net.clojars.savya/buddy-auth "4.0.2"]
+[net.clojars.savya/buddy-auth "5.0.0"]
 ```
 
 Use this package with *jdk>=8*.
