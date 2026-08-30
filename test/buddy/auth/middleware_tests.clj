@@ -163,6 +163,17 @@
     (-handle-unauthorized [_ _ data]
       {:body "error" :status 401 :data data})))
 
+(defn- custom-authorization-error
+  "An exception that carries its own error data through IAuthorizationdError.
+
+  `proxy` implements the protocol's generated interface directly, so the method
+  must be written under its munged Java name (`_get_error_data`) and without an
+  explicit `this` parameter. Spelling it `-get-error-data` here compiles but
+  never overrides anything."
+  [data]
+  (proxy [Exception buddy.auth.protocols.IAuthorizationdError] []
+    (_get_error_data [] data)))
+
 (deftest wrap-authorization
   (testing "Authorize a request"
     (let [handler (mw/wrap-authorization identity autz-backend)
@@ -215,17 +226,41 @@
              (deref response 100 ::timeout)))
       (is (not (realized? exception)))))
 
-  ;; (testing "Unauthorized request with custom exception"
-  ;;   (let [handler (fn [req]
-  ;;                   (throw (proxy [Exception proto/IAuthorization] []
-  ;;                            proto/IAuthorizationdError
-  ;;                            (-get-error-data [_]
-  ;;                              {:foo :bar}))))
-  ;;         handler (mw/wrap-authorization handler autz-backend)
-  ;;         response (handler {})]
-  ;;     (is (= (:body response) "error"))
-  ;;     (is (= (:status response) 401))
-  ;;     (is (= (:data response) {:foo :bar}))))
+  (testing "Reject an unauthorized request carrying its own error data"
+    (let [error (custom-authorization-error {:foo :bar})]
+      (is (satisfies? proto/IAuthorizationdError error))
+      (let [handler (mw/wrap-authorization (fn [_] (throw error)) autz-backend)]
+        (is (= {:body "error" :status 401 :data {:foo :bar}}
+               (handler {}))))))
+
+  (testing "Reject an asynchronous request carrying its own error data"
+    (let [handler (fn [_ _ _]
+                    (throw (custom-authorization-error {:foo :bar})))
+          handler (mw/wrap-authorization handler autz-backend)
+          response (promise)
+          exception (promise)]
+      (handler {} response exception)
+      (is (= {:body "error" :status 401 :data {:foo :bar}}
+             (deref response 100 ::timeout)))
+      (is (not (realized? exception)))))
+
+  (testing "Reject an error data exception raised asynchronously"
+    (let [raised (promise)
+          handler (fn [_ _ raise] (deliver raised raise))
+          handler (mw/wrap-authorization handler autz-backend)
+          response (promise)
+          exception (promise)]
+      (handler {} response exception)
+      (deref (future (@raised (custom-authorization-error {:foo :bar}))) 100 ::timeout)
+      (is (= {:body "error" :status 401 :data {:foo :bar}}
+             (deref response 100 ::timeout)))
+      (is (not (realized? exception)))))
+
+  (testing "An exception without error data is rethrown"
+    (let [handler (mw/wrap-authorization
+                   (fn [_] (throw (IllegalStateException. "boom")))
+                   autz-backend)]
+      (is (thrown-with-msg? IllegalStateException #"boom" (handler {})))))
 
   (testing "Reject an unauthorized request with a function backend"
     (let [backend (fn [_ data] {:body "error" :status 401 :data data})
