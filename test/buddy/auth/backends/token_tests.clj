@@ -173,6 +173,18 @@
 (def jwe-backend-with-authfn (backends/jwe {:secret jwe-secret :authfn (constantly ::jwe-authorized)}))
 (def jwe-data {:userid 1})
 
+(deftest jwt-backend-rejects-skip-validation-test
+  (testing "Reject skip-validation in the JWS backend"
+    (is (thrown-with-msg? IllegalArgumentException
+                          #":skip-validation"
+                          (backends/jws {:secret jws-secret
+                                         :options {:skip-validation true}}))))
+  (testing "Reject skip-validation in the JWE backend"
+    (is (thrown-with-msg? IllegalArgumentException
+                          #":skip-validation"
+                          (backends/jwe {:secret jwe-secret
+                                         :options {:skip-validation true}})))))
+
 (defn make-jwe-request
   [data secret]
   (let [header (->> (jwt/encrypt data secret)

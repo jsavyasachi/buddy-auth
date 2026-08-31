@@ -51,10 +51,17 @@
              (re-find (re-pattern (str prefix "^" (java.util.regex.Pattern/quote token-name) " (.+)$")))
              (second))))
 
+(defn- validate-options!
+  [options]
+  (when (get options :skip-validation)
+    (throw (IllegalArgumentException.
+            ":skip-validation is not allowed for token authentication backends"))))
+
 (defn jws-backend
   [{:keys [secret authfn unauthorized-handler options token-name on-error bearer-challenge]
     :or {authfn identity token-name "Token"}}]
   {:pre [(ifn? authfn)]}
+  (validate-options! options)
   (reify
     proto/IAuthentication
     (-parse [_ request]
@@ -76,6 +83,7 @@
   [{:keys [secret authfn unauthorized-handler options token-name on-error bearer-challenge]
     :or {authfn identity token-name "Token"}}]
   {:pre [(ifn? authfn)]}
+  (validate-options! options)
   (reify
     proto/IAuthentication
     (-parse [_ request]
