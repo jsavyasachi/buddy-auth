@@ -492,7 +492,7 @@ This example uses jwe with an asymmetric encryption algorithm:
 (def backend
   (backends/jwe {:secret privkey
                  :options {:alg :rsa-oaep
-                           :enc :a128-hs256}}))
+                           :enc :a128cbc-hs256}}))
 
 ;; and wrap your ring application with
 ;; the authentication middleware
@@ -513,7 +513,7 @@ The login endpoint can look like this:
         user (find-user (:username data)   ;; (implementation ommited)
                         (:password data))
         token (jwt/encrypt {:user (:id user)} pubkey
-                           {:alg :rsa-oaep :enc :a128-hs256})]
+                           {:alg :rsa-oaep :enc :a128cbc-hs256})]
     {:status 200
      :body (json/encode {:token token})
      :headers {:content-type "application/json"})))
@@ -554,7 +554,8 @@ token from the `Authorization` header with the `Bearer` scheme.
                   :options {:iss "https://accounts.google.com"
                             :aud "your-client-id"
                             :clock-skew 60
-                            :required [:sub]}}))
+                            :required [:sub]
+                            :algs #{:rs256}}}))
 
 (def app (-> your-ring-app
              (wrap-authentication backend)))
@@ -574,8 +575,8 @@ Options:
   Use it for tests or custom fetches.
 - `:jwks-opts` - map passed to `jose.jwks/remote-source` (`:cache-ttl-ms`,
   `:connect-timeout-ms`, `:read-timeout-ms`, `:rate-limit-ms`).
-- `:options` - claim validation passed to jose-clj (`:iss`, `:aud`, `:clock-skew`,
-  `:required`).
+- `:options` - claim validation and expected JWT algorithms passed to jose-clj
+  (`:iss`, `:aud`, `:clock-skew`, `:required`, `:algs` or `:alg`).
 - `:token-name` - the Authorization scheme, `"Bearer"` by default.
 - `:bearer-challenge` - when true, add an RFC 6750 `WWW-Authenticate: Bearer`
   challenge with an error and description to default 401/403 responses.

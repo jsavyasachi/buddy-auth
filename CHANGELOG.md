@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Security
+
+- **Breaking.** Empty `:request-method` allow-lists now reject every method
+  instead of allowing every method. Nil remains unrestricted, while keywords
+  and non-empty sets retain their existing matching behavior.
+- **Breaking.** JWS and JWE backends now reject truthy `:skip-validation`
+  options at construction rather than allowing signed or encrypted tokens to
+  bypass all claim validation. An audit of buddy-sign's `unsign` and `decrypt`
+  options found no other option with the same claim-validation bypass behavior.
+
 ## [5.0.0] - 2026-08-30
 
 ### Fixed
