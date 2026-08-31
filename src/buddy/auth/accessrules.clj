@@ -278,8 +278,7 @@
       (= actual allowed)
 
       (set? allowed)
-      (or (empty? allowed)
-          (contains? allowed actual))
+      (contains? allowed actual)
 
       :else true)))
 

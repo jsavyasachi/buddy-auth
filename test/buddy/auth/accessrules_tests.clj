@@ -116,6 +116,18 @@
                                      {:rules [{:uri "/known" :handler ok}]})]
       (is (= {:uri "/unknown"} (:body (handler {:uri "/unknown"})))))))
 
+(deftest empty-request-method-set-rejects-test
+  (let [handler (wrap-access-rules test-handler
+                                   {:rules [{:uri "/admin"
+                                             :handler ok
+                                             :request-method #{}}]
+                                    :default-deny true})]
+    (testing "an empty request-method allow-list rejects every method"
+      (is (thrown? clojure.lang.ExceptionInfo
+                   (handler {:uri "/admin"
+                             :request-method :delete})))))
+)
+
 (defn test-handler
   [req]
   (http/response req))

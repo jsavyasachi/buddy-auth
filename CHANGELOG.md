@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Security
+
+- **Breaking.** Empty `:request-method` allow-lists now reject every method
+  instead of allowing every method. Nil remains unrestricted, while keywords
+  and non-empty sets retain their existing matching behavior.
+
 ## [5.0.0] - 2026-08-30
 
 ### Fixed
