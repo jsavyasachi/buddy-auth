@@ -4,7 +4,7 @@ Authentication and authorization for [Ring](https://github.com/ring-clojure/ring
 
 [![Clojars Project](https://img.shields.io/clojars/v/net.clojars.savya/buddy-auth.svg)](https://clojars.org/net.clojars.savya/buddy-auth)
 [![cljdoc](https://cljdoc.org/badge/net.clojars.savya/buddy-auth)](https://cljdoc.org/d/net.clojars.savya/buddy-auth)
-[![test](https://github.com/jsavyasachi/buddy-auth/actions/workflows/test.yml/badge.svg)](https://github.com/jsavyasachi/buddy-auth/actions/workflows/test.yml)
+[![test](https://github.com/savyalabs/buddy-auth/actions/workflows/test.yml/badge.svg)](https://github.com/savyalabs/buddy-auth/actions/workflows/test.yml)
 
 ## Stack
 
@@ -20,7 +20,7 @@ Ring-based web applications:
 - Authentication backends: API key, HTTP Basic, session, and token. Token covers signed
   JWT and JWE through [buddy-sign](https://github.com/funcool/buddy-sign), and
   JWKS/OIDC token validation through
-  [jose-clj](https://github.com/jsavyasachi/jose-clj).
+  [jose-clj](https://github.com/savyalabs/jose-clj).
 - Ring middleware: `wrap-authentication` / `wrap-authorization`.
 - Access rules: declarative authorization for each route with `clout` patterns.
 

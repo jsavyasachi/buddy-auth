@@ -531,7 +531,7 @@ publishes this set at a remote JWKS endpoint. Providers include Auth0, Google,
 Okta, and Keycloak. The provider signs tokens with rotating keys and publishes
 the public keys at a JWKS URL. Your service fetches and caches the keys.
 
-This backend uses [jose-clj](https://github.com/jsavyasachi/jose-clj), which uses
+This backend uses [jose-clj](https://github.com/savyalabs/jose-clj), which uses
 Nimbus JOSE+JWT. `jose-clj` is an *optional* dependency and is not transitive.
 Add it to your project to use this backend. Calling `backends/jwks` without it
 throws an error:

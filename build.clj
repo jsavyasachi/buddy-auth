@@ -55,7 +55,7 @@
     :version version
     :basis basis
     :src-dirs ["src"]
-    :scm {:url "https://github.com/jsavyasachi/buddy-auth"
+    :scm {:url "https://github.com/savyalabs/buddy-auth"
           :tag (str "v" version)}
     :pom-data [[:licenses
                 [:license
